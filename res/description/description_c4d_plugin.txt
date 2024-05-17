@@ -1,0 +1,5 @@
+CONTAINER MyPlugin
+{
+    NAME MYPLUGIN;
+    INCLUDE Obase;
+}
