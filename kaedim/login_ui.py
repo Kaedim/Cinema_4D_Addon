@@ -27,6 +27,25 @@ jwt_token = None
 assets_list = []
 state = "logged_out"
 
+assets_list_new = [
+        {
+            'image_tags': ['Sign'],
+            'image': ['https://w7.pngwing.com/pngs/895/199/png-transparent-spider-man-heroes-download-with-transparent-background-free-thumbnail.png'],
+            'iterations': [{'status': 'completed'}]
+        },
+        {
+            'image_tags': ['Flower'],
+            'image': ['https://img.freepik.com/free-psd/bougainvillea-flower-isolated-transparent-background_191095-33338.jpg?size=338&ext=jpg&ga=GA1.1.2008272138.1721088000&semt=sph'],
+            'iterations': [{'status': 'completed'}]
+        },
+        {
+            'image_tags': ['House'],
+            'image': ['https://images.creativefabrica.com/products/previews/2023/10/27/LH874No6w/2XLj7loRuN3Sa7nt65RxsyKSx7Y-mobile.jpg'],
+            'iterations': [{'status': 'completed'}]
+        },
+        # Add more assets here for testing
+    ]
+
 
 def save_preferences(dev_id, api_key, refresh_token):
     prefs = c4d.plugins.GetWorldPluginData(c4d.PLUGINTYPE_PREFS)
@@ -37,6 +56,180 @@ def save_preferences(dev_id, api_key, refresh_token):
     prefs.SetString(103, refresh_token)
     c4d.plugins.SetWorldPluginData(c4d.PLUGINTYPE_PREFS, prefs)
     
+
+
+
+# class ImageArea(c4d.gui.GeUserArea):
+#     def __init__(self, image_url, image_name):
+#         super().__init__()
+#         self.image_url = image_url
+#         self.image_name = image_name
+#         self.bitmap = None
+
+#     def LoadBitmap(self):
+#         try:
+#             temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.png')
+#             urllib.request.urlretrieve(self.image_url, temp_file.name)
+#             self.bitmap = bitmaps.BaseBitmap()
+#             result = self.bitmap.InitWith(temp_file.name)
+#             if result[0] == c4d.IMAGERESULT_OK:
+#                 self.bitmap = None
+#                 print(f"Failed to load image: {self.image_url}, Error: {result[0]}")
+#             temp_file.close()
+#             os.unlink(temp_file.name)
+#         except Exception as e:
+#             print(f"Error loading image: {self.image_url}, Exception: {e}")
+#             self.bitmap = None
+
+#     def DrawMsg(self, x1, y1, x2, y2, msg):
+#         if not self.bitmap:
+#             self.LoadBitmap()
+#         if self.bitmap:
+#             self.DrawBitmap(self.bitmap, 0, 0, x2-x1, y2-y1, 0, 0, self.bitmap.GetBw(), self.bitmap.GetBh(), c4d.BMP_ALLOWALPHA)
+#         else:
+#             self.DrawSetTextColor(c4d.COLOR_RED)
+#             self.DrawText("Failed to load image", x1, y1, x2-x1)
+
+#     def GetMinSize(self):
+#         if not self.bitmap:
+#             self.LoadBitmap()
+#         if self.bitmap:
+#             return self.bitmap.GetBw(), self.bitmap.GetBh()
+#         return 50, 50  # Default size if the image fails to load
+    
+
+class FloatingPanel(c4d.gui.GeDialog):
+    """Custom dialog to display assets."""
+                
+    page = 0
+    
+    def CreateLayout(self):
+        global assets_list
+        self.SetTitle("Kaedim Asset List")
+        # Begin a scrollable group with a specified size limit and padding
+        if self.ScrollGroupBegin(0, c4d.BFH_SCALEFIT | c4d.BFV_SCALEFIT, scrollflags=c4d.SCROLLGROUP_VERT | c4d.SCROLLGROUP_HORIZ, initw=400, inith=300):
+            # Add padding around the scroll group content
+            self.GroupBorderSpace(10, 10, 10, 10)  # Add padding around the entire list
+            
+            if self.GroupBegin(1, c4d.BFH_SCALEFIT, cols=1, rows=len(assets_list)):
+                # Add padding inside the group that holds all assets
+                self.GroupBorderSpace(5, 5, 5, 5)  # Padding inside the group
+                print('assets', len(assets_list))
+                for i in range(self.page, 4):
+                    asset = assets_list[i]
+                    asset_tags = asset['image_tags']
+                    asset_image = asset['image'][0]
+                    status = asset['iterations'][0]['status']
+                    if asset_tags:
+                        if self.GroupBegin(10000 + i, c4d.BFH_SCALEFIT, cols=3, rows=1):
+                            self.GroupBorderSpace(10, 5, 10, 5)
+                            
+                            self.AddUserArea(7000 + i, c4d.BFH_CENTER, initw=50, inith=50)
+                            image_area = ImageArea(asset_image, f'asset_{i}.png')
+                            
+                            self.AttachUserArea(image_area, 7000 + i)
+                            self.LayoutChanged(7000 + i)
+                            
+                            # image_area.Redraw()
+                            
+                            print(f"Attached image area for asset {i}: {image_area}")
+
+                            self.AddStaticText(1000 + i, c4d.BFH_CENTER, name=asset_tags[0])
+                            self.AddButton(2000 + i, c4d.BFH_CENTER, initw=100, name="Import Asset")
+                            self.GroupEnd()
+                self.GroupEnd()
+            self.GroupEnd()  # End the scroll group
+    
+        # Button to close the dialog with some space around
+        self.GroupBorderSpace(0, 10, 0, 10)  # Space before the close button
+        
+        self.AddButton(3000, c4d.BFH_CENTER, name="Close")
+        # self.AddMeter(100001, c4d.BFH_SCALEFIT)
+        self.LayoutChanged() # force layout change
+        return True
+    
+
+    # def ClearLayout(self):
+    #     while self.GetLayoutElementCount() > 0:
+    #         self.RemoveElement(0)
+
+    def Command(self, id, msg):
+        global jwt_token, state, assets_list
+        if id == 3000:
+            self.Close()
+        elif id == 300001:
+            self.page = max(0, self.page - 1)
+            self.CreateLayout()
+            self.LayoutChanged(0)
+        elif id == 300002:
+            self.page = min(len(assets_list) // 12, self.page + 1)
+            self.CreateLayout()
+            self.LayoutChanged(0)
+        elif 2000 <= id < 3000:
+            index = id - 2000
+            print(f"Import asset: {assets_list[index]['iterations'][0]['results']['obj']}")
+            asset_name = assets_list[index]['image_tags'][0]
+            fbx_url = assets_list[index]['iterations'][0]['results']['obj']
+            temp_dir = c4d.storage.GeGetStartupWritePath()
+            local_path = download_file(fbx_url, temp_dir, asset_name)
+            import_file(local_path)
+        return True
+
+class ImageArea(gui.GeUserArea):
+    def __init__(self, image_url, image_name):
+        super().__init__()
+        self.image_url = image_url
+        self.image = bitmaps.BaseBitmap()
+        self.image_path = self.download_image(self.image_url, image_name)
+        self.setImage(self.image_path)
+        self.Redraw()
+
+    def download_image(self, url, image_name):
+        try:
+            tmp_file = os.path.join(tempfile.gettempdir(), os.path.basename(image_name))
+            urllib.request.urlretrieve(url, tmp_file)
+            print(f"Downloaded image to: {tmp_file}")
+            return tmp_file
+        except Exception as e:
+            print(f"Failed to download image: {e}")
+            return None
+        
+    def setImage(self, path):
+        if os.path.exists(path):
+            result = self.image.InitWith(path)
+            if result[0] != c4d.IMAGERESULT_OK:
+                print(f"Image initialization failed with error code: {result}")
+                self.image = None
+            else:
+                print(f"Image initialized successfully from {path}")
+                self.LayoutChanged()
+        else:
+            print(f"Image file does not exist at: {path}")
+            self.image = None
+
+    def DrawMsg(self, x1, y1, x2, y2, msg):
+        print("DrawMsg called")
+        self.DrawSetPen(c4d.COLOR_BG)
+        self.DrawRectangle(x1, y1, x2, y2)
+        if self.image:
+            width, height = self.image.GetSize()
+            if width > 0 and height > 0:
+                print(f"Drawing image with dimensions: {width}x{height}")
+                self.DrawBitmap(self.image, x1, y1, x2 - x1, y2 - y1, 0, 0, width, height, c4d.BMP_ALLOWALPHA)
+            else:
+                print("Image dimensions are zero.")
+        else:
+            print("No image to draw.")
+
+    def GetMinSize(self):
+        print("GetMinSize called")
+        if self.image:
+            width, height = self.image.GetSize()
+            return min(width, 50), min(height, 50)
+        return 50, 50
+    
+
+
 def import_file(filepath):
     # Get the current active document
     doc = c4d.documents.GetActiveDocument()
@@ -92,146 +285,6 @@ def download_file(url, dest_folder, name):
             for chunk in r.iter_content(chunk_size=8192):
                 f.write(chunk)
     return local_filename
-
-class FloatingPanel(c4d.gui.GeDialog):
-    """Custom dialog to display assets."""
-                
-    page = 0
-    
-    def CreateLayout(self):
-        global assets_list
-        self.SetTitle("Kaedim Asset List")
-        # Begin a scrollable group with a specified size limit and padding
-        if self.ScrollGroupBegin(0, c4d.BFH_SCALEFIT | c4d.BFV_SCALEFIT, scrollflags=c4d.SCROLLGROUP_VERT | c4d.SCROLLGROUP_HORIZ, initw=400, inith=300):
-            # Add padding around the scroll group content
-            self.GroupBorderSpace(10, 10, 10, 10)  # Add padding around the entire list
-            
-            if self.GroupBegin(1, c4d.BFH_SCALEFIT, cols=1, rows=len(assets_list)):
-                # Add padding inside the group that holds all assets
-                self.GroupBorderSpace(5, 5, 5, 5)  # Padding inside the group
-                print('assets', len(assets_list))
-                for i in range(self.page,  len(assets_list)):
-                    asset = assets_list[i]
-                    asset_tags = asset['image_tags']
-                    print(asset_tags[0])
-                    asset_image = asset['image'][0]
-                    status = asset['iterations'][0]['status']
-                    if asset_tags:
-                        # Begin a group for each asset (row) with two columns: one for the label, one for the button
-                        if self.GroupBegin(10000 + i, c4d.BFH_CENTER, cols=2, rows=1):
-                            # Adding space around each row
-                            self.GroupBorderSpace(10, 5, 10, 5)  # Padding around each asset row
-                            
-                            # Custom area for image
-                            # self.AddUserArea(7000 + i, c4d.BFH_CENTER, initw=50, inith=50)
-                            # self.image_area = ImageArea(asset_image, f'asset_{i}.png')
-                            # self.AttachUserArea(self.image_area, 3000 + i)
-
-                            # Static text for asset name
-                            self.AddStaticText(1000 + i, c4d.BFH_CENTER, name=asset_tags[0])
-                            # Button to import the asset
-                            self.AddButton(2000 + i, c4d.BFH_CENTER, initw=100, name="Import Asset")
-                            self.GroupEnd()  # End the row group
-                self.GroupEnd()  # End the inner group
-            self.GroupEnd()  # End the scroll group
-    
-        # Button to close the dialog with some space around
-        self.GroupBorderSpace(0, 10, 0, 10)  # Space before the close button
-        
-        # if self.GroupBegin(1, c4d.BFH_CENTER, cols=3, rows=len(assets_list)):
-        #     # Add padding inside the group that holds all assets
-        #     self.GroupBorderSpace(5, 5, 5, 5)  # Padding inside the group
-        #     self.AddButton(300001, c4d.BFH_CENTER, name="Previous page")
-        #     self.AddStaticText(1000 + i, c4d.BFH_CENTER, name=f"Curent page: {self.page + 1}")
-        #     self.AddButton(300002, c4d.BFH_CENTER, name="Next page")
-            
-        #     self.GroupEnd()  # End the inner group
-        self.AddButton(3000, c4d.BFH_CENTER, name="Close")
-        self.AddMeter(100001, c4d.BFH_SCALEFIT)
-        return True
-    
-
-    def ClearLayout(self):
-        """Clear the current layout."""
-        while self.GetLayoutElementCount() > 0:
-            self.RemoveElement(0)
-
-    def Command(self, id, msg):
-        global jwt_token, state, assets_list
-        if id == 3000:
-            self.Close()
-        if id == 300001:
-            print("Previous page", max(0, self.page - 1), self.page)
-            self.page = max(0, self.page - 1)
-            print("Previous page", max(0, self.page - 1), self.page)
-            # self.ClearLayout()
-            self.CreateLayout()
-            self.LayoutChanged(0)  # Rerender the layout
-        if id == 300002:
-            print("Next page", len(assets_list) // 12, self.page)
-            self.page = min(len(assets_list) // 12, self.page + 1)    
-            print("Next page", len(assets_list) // 12, self.page)
-            # self.ClearLayout()
-            self.CreateLayout()
-            self.LayoutChanged(0)  # Rerender the layout
-        elif 2000 <= id < 3000:
-            index = id - 2000
-            print("Import asset:", assets_list[index]['iterations'][0]['results']['obj'])
-            asset_name = assets_list[index]['image_tags'][0]
-            fbx_url = assets_list[index]['iterations'][0]['results']['obj']
-            temp_dir = c4d.storage.GeGetStartupWritePath()  # Default write directory in C4D
-            local_path = download_file(fbx_url, temp_dir, asset_name)
-            import_file(local_path)
-        return True
-
-class ImageArea(gui.GeUserArea):
-    def __init__(self, image_url, image_name):
-        super().__init__()
-        self.image_url = image_url
-        self.image = bitmaps.BaseBitmap()
-        self.image_path = self.download_image(self.image_url, image_name)
-        self.setImage(self.image_path)
-
-    def download_image(self, url, image_name):
-        try:
-            tmp_file = os.path.join(tempfile.gettempdir(), os.path.basename(image_name))
-            urllib.request.urlretrieve(url, tmp_file)
-            print(tmp_file)
-            return tmp_file
-        except Exception as e:
-            print(f"Failed to download image: {e}")
-            return None
-        
-    def setImage(self, path):
-        if os.path.exists(path):
-            result = self.image.InitWith(path)
-            if result[0] != c4d.IMAGERESULT_OK:
-                print(f"Image initialization failed with error code: {result}")
-                self.image = None
-            else:
-                print(f"Image initialized successfully from {path}")
-                self.LayoutChanged()
-        else:
-            print(f"Image file does not exist at: {path}")
-            self.image = None
-
-    def DrawMsg(self, x1, y1, x2, y2, msg):
-        self.DrawSetPen(c4d.COLOR_BG)
-        self.DrawRectangle(x1, y1, x2, y2)
-        if self.image:
-            width, height = self.image.GetSize()
-            if width > 0 and height > 0:
-                self.DrawBitmap(self.image, x1, y1, x2 - x1, y2 - y1, 0, 0, width, height, c4d.BMP_NORMAL)
-            else:
-                print("Image dimensions are zero.")
-        else:
-            print("No image to draw.")
-
-    def GetMinSize(self):
-        if self.image:
-            width, height = self.image.GetSize()
-            return min(width, 50), min(height, 50)
-        return 50, 50
 
 class LoginDialog(c4d.gui.GeDialog):
     ID_DEV_ID = 1001
@@ -329,4 +382,10 @@ class LoginDialog(c4d.gui.GeDialog):
             dlg.Open(dlgtype=c4d.DLG_TYPE_ASYNC, defaultw=400, defaulth=300)
         else:
             c4d.gui.MessageDialog("Failed to login: Invalid credentials")
+
+
+if __name__ == '__main__':
+    dlg = FloatingPanel()
+    dlg.Open(c4d.DLG_TYPE_ASYNC, pluginid=1000001, defaultw=400, defaulth=300)
+    c4d.EventAdd()
             
