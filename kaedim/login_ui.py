@@ -56,52 +56,16 @@ def save_preferences(dev_id, api_key, refresh_token):
     prefs.SetString(103, refresh_token)
     c4d.plugins.SetWorldPluginData(c4d.PLUGINTYPE_PREFS, prefs)
     
-
-
-
-# class ImageArea(c4d.gui.GeUserArea):
-#     def __init__(self, image_url, image_name):
-#         super().__init__()
-#         self.image_url = image_url
-#         self.image_name = image_name
-#         self.bitmap = None
-
-#     def LoadBitmap(self):
-#         try:
-#             temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.png')
-#             urllib.request.urlretrieve(self.image_url, temp_file.name)
-#             self.bitmap = bitmaps.BaseBitmap()
-#             result = self.bitmap.InitWith(temp_file.name)
-#             if result[0] == c4d.IMAGERESULT_OK:
-#                 self.bitmap = None
-#                 print(f"Failed to load image: {self.image_url}, Error: {result[0]}")
-#             temp_file.close()
-#             os.unlink(temp_file.name)
-#         except Exception as e:
-#             print(f"Error loading image: {self.image_url}, Exception: {e}")
-#             self.bitmap = None
-
-#     def DrawMsg(self, x1, y1, x2, y2, msg):
-#         if not self.bitmap:
-#             self.LoadBitmap()
-#         if self.bitmap:
-#             self.DrawBitmap(self.bitmap, 0, 0, x2-x1, y2-y1, 0, 0, self.bitmap.GetBw(), self.bitmap.GetBh(), c4d.BMP_ALLOWALPHA)
-#         else:
-#             self.DrawSetTextColor(c4d.COLOR_RED)
-#             self.DrawText("Failed to load image", x1, y1, x2-x1)
-
-#     def GetMinSize(self):
-#         if not self.bitmap:
-#             self.LoadBitmap()
-#         if self.bitmap:
-#             return self.bitmap.GetBw(), self.bitmap.GetBh()
-#         return 50, 50  # Default size if the image fails to load
     
 
 class FloatingPanel(c4d.gui.GeDialog):
     """Custom dialog to display assets."""
+    def __init__(self):
+        self.image_area = []
                 
     page = 0
+
+    
     
     def CreateLayout(self):
         global assets_list
@@ -115,7 +79,9 @@ class FloatingPanel(c4d.gui.GeDialog):
                 # Add padding inside the group that holds all assets
                 self.GroupBorderSpace(5, 5, 5, 5)  # Padding inside the group
                 print('assets', len(assets_list))
-                for i in range(self.page, 4):
+                
+                # for i in range(self.page,  len(assets_list)):
+                for i in range(0,4):
                     asset = assets_list[i]
                     asset_tags = asset['image_tags']
                     asset_image = asset['image'][0]
@@ -125,14 +91,13 @@ class FloatingPanel(c4d.gui.GeDialog):
                             self.GroupBorderSpace(10, 5, 10, 5)
                             
                             self.AddUserArea(7000 + i, c4d.BFH_CENTER, initw=50, inith=50)
-                            image_area = ImageArea(asset_image, f'asset_{i}.png')
+                            self.image_area.append(ImageArea(asset_image, f'asset_{i}.png'))
+                            self.AttachUserArea(self.image_area[i], 7000 + i)
                             
-                            self.AttachUserArea(image_area, 7000 + i)
-                            self.LayoutChanged(7000 + i)
-                            
+                            # self.image_areas.append(image_area)  # Store the reference
                             # image_area.Redraw()
                             
-                            print(f"Attached image area for asset {i}: {image_area}")
+                            print(f"Attached image area for asset {i}: {self.image_area[i]}")
 
                             self.AddStaticText(1000 + i, c4d.BFH_CENTER, name=asset_tags[0])
                             self.AddButton(2000 + i, c4d.BFH_CENTER, initw=100, name="Import Asset")
@@ -144,14 +109,14 @@ class FloatingPanel(c4d.gui.GeDialog):
         self.GroupBorderSpace(0, 10, 0, 10)  # Space before the close button
         
         self.AddButton(3000, c4d.BFH_CENTER, name="Close")
-        # self.AddMeter(100001, c4d.BFH_SCALEFIT)
+       
         self.LayoutChanged() # force layout change
         return True
     
 
-    # def ClearLayout(self):
-    #     while self.GetLayoutElementCount() > 0:
-    #         self.RemoveElement(0)
+    def ClearLayout(self):
+        while self.GetLayoutElementCount() > 0:
+            self.RemoveElement(0)
 
     def Command(self, id, msg):
         global jwt_token, state, assets_list
@@ -174,6 +139,8 @@ class FloatingPanel(c4d.gui.GeDialog):
             local_path = download_file(fbx_url, temp_dir, asset_name)
             import_file(local_path)
         return True
+    
+
 
 class ImageArea(gui.GeUserArea):
     def __init__(self, image_url, image_name):
@@ -182,7 +149,7 @@ class ImageArea(gui.GeUserArea):
         self.image = bitmaps.BaseBitmap()
         self.image_path = self.download_image(self.image_url, image_name)
         self.setImage(self.image_path)
-        self.Redraw()
+        
 
     def download_image(self, url, image_name):
         try:
@@ -385,7 +352,9 @@ class LoginDialog(c4d.gui.GeDialog):
 
 
 if __name__ == '__main__':
-    dlg = FloatingPanel()
-    dlg.Open(c4d.DLG_TYPE_ASYNC, pluginid=1000001, defaultw=400, defaulth=300)
+    global diag
+
+    diag = FloatingPanel()
+    diag.Open(c4d.DLG_TYPE_ASYNC, defaultw=100, defaulth=100)
     c4d.EventAdd()
             
