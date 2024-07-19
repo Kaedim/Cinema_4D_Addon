@@ -5,6 +5,7 @@ from c4d import gui, bitmaps
 import urllib.request
 import tempfile
 from kaedim.api import refresh_jwt, fetch_assets, load_preferences
+import math
 
 
 PLUGIN_ID = 1300021  # Use a unique ID for your plugin. Obtain one from Maxon to avoid conflicts.
@@ -27,24 +28,7 @@ jwt_token = None
 assets_list = []
 state = "logged_out"
 
-assets_list_new = [
-        {
-            'image_tags': ['Sign'],
-            'image': ['https://w7.pngwing.com/pngs/895/199/png-transparent-spider-man-heroes-download-with-transparent-background-free-thumbnail.png'],
-            'iterations': [{'status': 'completed'}]
-        },
-        {
-            'image_tags': ['Flower'],
-            'image': ['https://img.freepik.com/free-psd/bougainvillea-flower-isolated-transparent-background_191095-33338.jpg?size=338&ext=jpg&ga=GA1.1.2008272138.1721088000&semt=sph'],
-            'iterations': [{'status': 'completed'}]
-        },
-        {
-            'image_tags': ['House'],
-            'image': ['https://images.creativefabrica.com/products/previews/2023/10/27/LH874No6w/2XLj7loRuN3Sa7nt65RxsyKSx7Y-mobile.jpg'],
-            'iterations': [{'status': 'completed'}]
-        },
-        # Add more assets here for testing
-    ]
+
 
 
 def save_preferences(dev_id, api_key, refresh_token):
@@ -55,63 +39,108 @@ def save_preferences(dev_id, api_key, refresh_token):
     prefs.SetString(102, api_key)
     prefs.SetString(103, refresh_token)
     c4d.plugins.SetWorldPluginData(c4d.PLUGINTYPE_PREFS, prefs)
+
+
+
+    
+
+class CustomGroup(c4d.gui.SubDialog):
+    """A SubDialog to display the passed string, its used as example for the actual content of a Tab"""
+    def __init__(self,page_no):
+        super().__init__()
+        self.page_no = page_no
+        self.image_area = []
+
+    def CreateLayout(self):
+        print(f"page no fromdialog class {self.page_no}")
+        global assets_list
+        start_index = self.page_no * 10
+        end_index = min(start_index + 10, len(assets_list))
+        
+        self.image_area.clear()
+        for i in range(start_index,end_index):
+            asset = assets_list[i]
+            asset_tags = asset['image_tags']
+            asset_image = asset['image'][0]
+            status = asset['iterations'][0]['status']
+            if asset_tags:
+                if self.GroupBegin(10000 + i, c4d.BFH_SCALEFIT, cols=3, rows=1):
+                    self.GroupBorderSpace(10, 5, 10, 5)
+
+                   
+                    self.AddUserArea(7000 + i, c4d.BFH_CENTER, initw=50, inith=50)
+                    self.image_area.append(ImageArea(asset_image, f'asset_{i}.png'))
+                    imagearea_index = len(self.image_area)-1
+                    
+                    self.AttachUserArea(self.image_area[imagearea_index], 7000 + i)
+                    
+                    print(f"Attached image area for asset {i}: {self.image_area[imagearea_index]}")
+
+                    self.AddStaticText(1000 + i, c4d.BFH_CENTER, name=asset_tags[0])
+                    self.AddButton(2000 + i, c4d.BFH_CENTER, initw=100, name="Import Asset")
+                    
+                    self.GroupEnd()
+        return True
+    
     
     
 
 class FloatingPanel(c4d.gui.GeDialog):
     """Custom dialog to display assets."""
     def __init__(self):
-        self.image_area = []
-                
-    page = 0
+        super().__init__()
+        self.page = 0
+        self.assets_per_page = 10  
+        self.custom_group_list = []
+        self.cg1= CustomGroup(self.page)
+        self.custom_group_list.append(self.cg1)
+        
+        
+
 
     
-    
     def CreateLayout(self):
+
         global assets_list
+        
+       
         self.SetTitle("Kaedim Asset List")
         # Begin a scrollable group with a specified size limit and padding
         if self.ScrollGroupBegin(0, c4d.BFH_SCALEFIT | c4d.BFV_SCALEFIT, scrollflags=c4d.SCROLLGROUP_VERT | c4d.SCROLLGROUP_HORIZ, initw=400, inith=300):
             # Add padding around the scroll group content
             self.GroupBorderSpace(10, 10, 10, 10)  # Add padding around the entire list
             
-            if self.GroupBegin(1, c4d.BFH_SCALEFIT, cols=1, rows=len(assets_list)):
+            if self.GroupBegin(1, c4d.BFH_SCALEFIT, cols=1, rows=self.assets_per_page):
                 # Add padding inside the group that holds all assets
                 self.GroupBorderSpace(5, 5, 5, 5)  # Padding inside the group
-                print('assets', len(assets_list))
-                
-                # for i in range(self.page,  len(assets_list)):
-                for i in range(0,4):
-                    asset = assets_list[i]
-                    asset_tags = asset['image_tags']
-                    asset_image = asset['image'][0]
-                    status = asset['iterations'][0]['status']
-                    if asset_tags:
-                        if self.GroupBegin(10000 + i, c4d.BFH_SCALEFIT, cols=3, rows=1):
-                            self.GroupBorderSpace(10, 5, 10, 5)
-                            
-                            self.AddUserArea(7000 + i, c4d.BFH_CENTER, initw=50, inith=50)
-                            self.image_area.append(ImageArea(asset_image, f'asset_{i}.png'))
-                            self.AttachUserArea(self.image_area[i], 7000 + i)
-                            
-                            # self.image_areas.append(image_area)  # Store the reference
-                            # image_area.Redraw()
-                            
-                            print(f"Attached image area for asset {i}: {self.image_area[i]}")
 
-                            self.AddStaticText(1000 + i, c4d.BFH_CENTER, name=asset_tags[0])
-                            self.AddButton(2000 + i, c4d.BFH_CENTER, initw=100, name="Import Asset")
-                            self.GroupEnd()
+   
+                self.AddSubDialog(1234, c4d.BFH_SCALEFIT | c4d.BFV_SCALEFIT, 100, 100)
+                self.AttachSubDialog(self.cg1, 1234)
+
+               
                 self.GroupEnd()
             self.GroupEnd()  # End the scroll group
     
         # Button to close the dialog with some space around
+        self.GroupBegin(2, c4d.BFH_CENTER, cols=4, rows=1)
         self.GroupBorderSpace(0, 10, 0, 10)  # Space before the close button
         
+
+        self.AddButton(3001, c4d.BFH_CENTER, name="Previous")
+
         self.AddButton(3000, c4d.BFH_CENTER, name="Close")
+
+        self.AddButton(3002, c4d.BFH_CENTER, name="Next")
+    
+        self.AddMeter(100001, c4d.BFH_SCALEFIT)
+
+        self.GroupEnd()
+ 
        
-        self.LayoutChanged() # force layout change
         return True
+    
+
     
 
     def ClearLayout(self):
@@ -122,6 +151,14 @@ class FloatingPanel(c4d.gui.GeDialog):
         global jwt_token, state, assets_list
         if id == 3000:
             self.Close()
+        elif id == 3001:
+            if self.page > 0:
+                self.page -= 1
+                self.updateSubDialog()
+        elif id == 3002:
+            if (self.page + 1) * self.assets_per_page < len(assets_list):
+                self.page += 1
+                self.updateSubDialog()
         elif id == 300001:
             self.page = max(0, self.page - 1)
             self.CreateLayout()
@@ -139,6 +176,17 @@ class FloatingPanel(c4d.gui.GeDialog):
             local_path = download_file(fbx_url, temp_dir, asset_name)
             import_file(local_path)
         return True
+    
+    
+    def updateSubDialog(self):
+
+        self.custom_group_list.append(CustomGroup(self.page))
+
+        self.AttachSubDialog(self.custom_group_list[self.page], 1234)
+        self.LayoutChanged(1234)
+
+        
+        
     
 
 
@@ -175,7 +223,7 @@ class ImageArea(gui.GeUserArea):
             self.image = None
 
     def DrawMsg(self, x1, y1, x2, y2, msg):
-        print("DrawMsg called")
+        # print("DrawMsg called")
         self.DrawSetPen(c4d.COLOR_BG)
         self.DrawRectangle(x1, y1, x2, y2)
         if self.image:
@@ -189,7 +237,7 @@ class ImageArea(gui.GeUserArea):
             print("No image to draw.")
 
     def GetMinSize(self):
-        print("GetMinSize called")
+        # print("GetMinSize called")
         if self.image:
             width, height = self.image.GetSize()
             return min(width, 50), min(height, 50)
