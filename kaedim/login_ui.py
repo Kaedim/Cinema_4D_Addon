@@ -54,32 +54,46 @@ class CustomGroup(c4d.gui.SubDialog):
     def CreateLayout(self):
         print(f"page no fromdialog class {self.page_no}")
         global assets_list
-        start_index = self.page_no * 10
-        end_index = min(start_index + 10, len(assets_list))
+        start_index = self.page_no * 12
+        end_index = min(start_index + 12, len(assets_list))
         
         self.image_area.clear()
-        for i in range(start_index,end_index):
-            asset = assets_list[i]
-            asset_tags = asset['image_tags']
-            asset_image = asset['image'][0]
-            status = asset['iterations'][0]['status']
-            if asset_tags:
-                if self.GroupBegin(10000 + i, c4d.BFH_SCALEFIT, cols=3, rows=1):
-                    self.GroupBorderSpace(10, 5, 10, 5)
+        
+        if self.GroupBegin(8888,c4d.BFH_CENTER,cols=3,rows=1):
+            self.GroupSpace(0,15)
+            for i in range(start_index,end_index):
+                asset = assets_list[i]
+                asset_tags = asset['image_tags']
+                asset_image = asset['image'][0]
+                status = asset['iterations'][0]['status']
+                if asset_tags:
+                    if self.GroupBegin(10000 + i, c4d.BFH_LEFT, cols=1, rows=3):
+                        self.GroupBorderSpace(10, 5, 10, 5)
+                        self.GroupSpace(5,10)
 
-                   
-                    self.AddUserArea(7000 + i, c4d.BFH_CENTER, initw=50, inith=50)
-                    self.image_area.append(ImageArea(asset_image, f'asset_{i}.png'))
-                    imagearea_index = len(self.image_area)-1
-                    
-                    self.AttachUserArea(self.image_area[imagearea_index], 7000 + i)
-                    
-                    print(f"Attached image area for asset {i}: {self.image_area[imagearea_index]}")
 
-                    self.AddStaticText(1000 + i, c4d.BFH_CENTER, name=asset_tags[0])
-                    self.AddButton(2000 + i, c4d.BFH_CENTER, initw=100, name="Import Asset")
-                    
-                    self.GroupEnd()
+                
+                        
+                        self.GroupBegin(20000 + i, c4d.BFH_CENTER, cols=1, rows=1)
+                        self.AddUserArea(7000 + i, c4d.BFH_CENTER, initw=50, inith=50)
+                        self.image_area.append(ImageArea(asset_image, f'asset_{i}.png'))
+                        imagearea_index = len(self.image_area) - 1
+                        self.AttachUserArea(self.image_area[imagearea_index], 7000 + i)
+                        self.GroupEnd()
+
+                        self.GroupBegin(30000 + i, c4d.BFH_CENTER, cols=1, rows=1)
+                        self.AddStaticText(1000 + i, c4d.BFH_CENTER, name=asset_tags[0])
+                        self.GroupEnd()
+
+                        
+
+                        # self.GroupBegin(40000 + i, c4d.BFH_RIGHT, cols=1, rows=1)
+                        self.AddButton(2000 + i, c4d.BFH_CENTER, initw=100, name="Import Asset")
+                        # self.GroupEnd()
+
+
+                        self.GroupEnd()
+            self.GroupEnd()
         return True
     
     
@@ -90,7 +104,7 @@ class FloatingPanel(c4d.gui.GeDialog):
     def __init__(self):
         super().__init__()
         self.page = 0
-        self.assets_per_page = 10  
+        self.assets_per_page = 12  
         self.custom_group_list = []
         self.cg1= CustomGroup(self.page)
         self.custom_group_list.append(self.cg1)
@@ -106,16 +120,17 @@ class FloatingPanel(c4d.gui.GeDialog):
        
         self.SetTitle("Kaedim Asset List")
         # Begin a scrollable group with a specified size limit and padding
-        if self.ScrollGroupBegin(0, c4d.BFH_SCALEFIT | c4d.BFV_SCALEFIT, scrollflags=c4d.SCROLLGROUP_VERT | c4d.SCROLLGROUP_HORIZ, initw=400, inith=300):
+        if self.ScrollGroupBegin(0, c4d.BFH_SCALEFIT | c4d.BFV_SCALEFIT, scrollflags=c4d.SCROLLGROUP_VERT | c4d.SCROLLGROUP_HORIZ, initw=400, inith=350):
             # Add padding around the scroll group content
             self.GroupBorderSpace(10, 10, 10, 10)  # Add padding around the entire list
             
-            if self.GroupBegin(1, c4d.BFH_SCALEFIT, cols=1, rows=self.assets_per_page):
+            if self.GroupBegin(1, c4d.BFH_SCALEFIT, cols=1, rows=1,groupflags=c4d.BFV_CMD_EQUALCOLUMNS):
                 # Add padding inside the group that holds all assets
                 self.GroupBorderSpace(5, 5, 5, 5)  # Padding inside the group
+                
 
    
-                self.AddSubDialog(1234, c4d.BFH_SCALEFIT | c4d.BFV_SCALEFIT, 100, 100)
+                self.AddSubDialog(1234, c4d.BFH_SCALE | c4d.BFV_SCALEFIT, 100, 100)
                 self.AttachSubDialog(self.cg1, 1234)
 
                
@@ -125,6 +140,7 @@ class FloatingPanel(c4d.gui.GeDialog):
         # Button to close the dialog with some space around
         self.GroupBegin(2, c4d.BFH_CENTER, cols=4, rows=1)
         self.GroupBorderSpace(0, 10, 0, 10)  # Space before the close button
+        self.GroupSpace(40,0)
         
 
         self.AddButton(3001, c4d.BFH_CENTER, name="Previous")
@@ -197,7 +213,6 @@ class ImageArea(gui.GeUserArea):
         self.image = bitmaps.BaseBitmap()
         self.image_path = self.download_image(self.image_url, image_name)
         self.setImage(self.image_path)
-        
 
     def download_image(self, url, image_name):
         try:
@@ -208,7 +223,7 @@ class ImageArea(gui.GeUserArea):
         except Exception as e:
             print(f"Failed to download image: {e}")
             return None
-        
+
     def setImage(self, path):
         if os.path.exists(path):
             result = self.image.InitWith(path)
@@ -223,21 +238,28 @@ class ImageArea(gui.GeUserArea):
             self.image = None
 
     def DrawMsg(self, x1, y1, x2, y2, msg):
-        # print("DrawMsg called")
         self.DrawSetPen(c4d.COLOR_BG)
         self.DrawRectangle(x1, y1, x2, y2)
         if self.image:
             width, height = self.image.GetSize()
             if width > 0 and height > 0:
-                print(f"Drawing image with dimensions: {width}x{height}")
-                self.DrawBitmap(self.image, x1, y1, x2 - x1, y2 - y1, 0, 0, width, height, c4d.BMP_ALLOWALPHA)
+                draw_width, draw_height = self.calculate_aspect_ratio(width, height, x2 - x1, y2 - y1)
+                offset_x = (x2 - x1 - draw_width) // 2
+                offset_y = (y2 - y1 - draw_height) // 2
+                self.DrawBitmap(self.image, x1 + offset_x, y1 + offset_y, draw_width, draw_height, 0, 0, width, height, c4d.BMP_ALLOWALPHA)
             else:
                 print("Image dimensions are zero.")
         else:
             print("No image to draw.")
 
+    def calculate_aspect_ratio(self, img_width, img_height, max_width, max_height):
+        aspect_ratio = img_width / img_height
+        if max_width / aspect_ratio <= max_height:
+            return max_width, int(max_width / aspect_ratio)
+        else:
+            return int(max_height * aspect_ratio), max_height
+
     def GetMinSize(self):
-        # print("GetMinSize called")
         if self.image:
             width, height = self.image.GetSize()
             return min(width, 50), min(height, 50)
