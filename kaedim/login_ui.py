@@ -96,6 +96,19 @@ class CustomGroup(c4d.gui.SubDialog):
             self.GroupEnd()
         return True
     
+
+    def Command(self, id, msg):
+        if 2000 <= id < 3000:
+            index = id - 2000
+            print(f"Import asset: {assets_list[index]['iterations'][0]['results']['obj']}")
+            asset_name = assets_list[index]['image_tags'][0]
+            fbx_url = assets_list[index]['iterations'][0]['results']['obj']
+            temp_dir = c4d.storage.GeGetStartupWritePath()
+            local_path = download_file(fbx_url, temp_dir, asset_name)
+            import_file(local_path)
+        return True
+    
+    
     
     
 
@@ -175,22 +188,7 @@ class FloatingPanel(c4d.gui.GeDialog):
             if (self.page + 1) * self.assets_per_page < len(assets_list):
                 self.page += 1
                 self.updateSubDialog()
-        elif id == 300001:
-            self.page = max(0, self.page - 1)
-            self.CreateLayout()
-            self.LayoutChanged(0)
-        elif id == 300002:
-            self.page = min(len(assets_list) // 12, self.page + 1)
-            self.CreateLayout()
-            self.LayoutChanged(0)
-        elif 2000 <= id < 3000:
-            index = id - 2000
-            print(f"Import asset: {assets_list[index]['iterations'][0]['results']['obj']}")
-            asset_name = assets_list[index]['image_tags'][0]
-            fbx_url = assets_list[index]['iterations'][0]['results']['obj']
-            temp_dir = c4d.storage.GeGetStartupWritePath()
-            local_path = download_file(fbx_url, temp_dir, asset_name)
-            import_file(local_path)
+        
         return True
     
     
@@ -217,6 +215,9 @@ class ImageArea(gui.GeUserArea):
     def download_image(self, url, image_name):
         try:
             tmp_file = os.path.join(tempfile.gettempdir(), os.path.basename(image_name))
+            if os.path.exists(tmp_file):
+                print(f"Image already exists at: {tmp_file}")
+                return tmp_file
             urllib.request.urlretrieve(url, tmp_file)
             print(f"Downloaded image to: {tmp_file}")
             return tmp_file
