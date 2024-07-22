@@ -41,6 +41,20 @@ def save_preferences(dev_id, api_key, refresh_token):
     c4d.plugins.SetWorldPluginData(c4d.PLUGINTYPE_PREFS, prefs)
 
 
+class TextArea(gui.GeUserArea):
+    def __init__(self, text):
+        super().__init__()
+        self.text = text
+
+    def DrawMsg(self, x1, y1, x2, y2, msg):
+        self.DrawSetTextCol(c4d.COLOR_TEXT)
+        self.DrawSetFont(c4d.FONT_BOLD)
+        self.DrawText(self.text, x1, y1)
+
+    def GetMinSize(self):
+        return 100, 15  # Adjust as needed
+    
+
 
     
 
@@ -50,6 +64,8 @@ class CustomGroup(c4d.gui.SubDialog):
         super().__init__()
         self.page_no = page_no
         self.image_area = []
+        self.lines = []
+       
 
     def CreateLayout(self):
         print(f"page no fromdialog class {self.page_no}")
@@ -81,9 +97,25 @@ class CustomGroup(c4d.gui.SubDialog):
                         self.AttachUserArea(self.image_area[imagearea_index], 7000 + i)
                         self.GroupEnd()
 
-                        self.GroupBegin(30000 + i, c4d.BFH_CENTER, cols=1, rows=1)
-                        self.AddStaticText(1000 + i, c4d.BFH_CENTER, name=asset_tags[0])
+                        # words = asset_tags[0].split(' ')
+                        # for i in range(0,len(words)-1):
+                        #     if(len(self.lines) == 0):
+                        #         self.lines.append(words[i])
+                        #     elif(len(self.lines[len(self.lines)-1])<50):
+                        #         self.lines[len(self.lines)-1] = self.lines[len(self.lines)-1]+ ' '+words[i]
+                        #     else:
+                        #         self.lines.append(words[i])
+                        text_width = 100
+                        if(len(asset_tags[0])<=6):
+                            text_width = 50
+                        elif(len(asset_tags[0])>6 and len(asset_tags[0])<10):
+                            text_width =90
+
+                        self.GroupBegin(30000 + i, c4d.BFH_CENTER, cols=1,)
+
+                        self.AddStaticText(1000 + i, c4d.BFH_CENTER,initw=text_width, name=asset_tags[0])
                         self.GroupEnd()
+                       
 
                         
 
