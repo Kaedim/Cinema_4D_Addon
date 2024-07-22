@@ -60,73 +60,110 @@ class TextArea(gui.GeUserArea):
 
 class CustomGroup(c4d.gui.SubDialog):
     """A SubDialog to display the passed string, its used as example for the actual content of a Tab"""
-    def __init__(self,page_no):
+    def __init__(self,page_no, assets, assets_indices,search_query):
         super().__init__()
         self.page_no = page_no
+        self.assets = assets
+        self.assets_indices = assets_indices
+        self.search_query = search_query
         self.image_area = []
-        self.lines = []
        
 
     def CreateLayout(self):
-        print(f"page no fromdialog class {self.page_no}")
-        global assets_list
-        start_index = self.page_no * 12
-        end_index = min(start_index + 12, len(assets_list))
         
-        self.image_area.clear()
+
+        if(len(self.search_query == 0)):
+            if self.GroupBegin(8888,c4d.BFH_CENTER,cols=3,rows=1):
+                self.GroupSpace(0,15)
+                for i in range(0,len(self.assets_indices)-1):
+                    asset = self.assets[self.assets_indices[i]]
+                    asset_tags = asset['image_tags']
+                    asset_image = asset['image'][0]
+                    status = asset['iterations'][0]['status']
+                    if asset_tags:
+                        if self.GroupBegin(10000 + i, c4d.BFH_LEFT, cols=1, rows=3):
+                            self.GroupBorderSpace(10, 5, 10, 5)
+                            self.GroupSpace(5,10)
         
-        if self.GroupBegin(8888,c4d.BFH_CENTER,cols=3,rows=1):
-            self.GroupSpace(0,15)
-            for i in range(start_index,end_index):
-                asset = assets_list[i]
-                asset_tags = asset['image_tags']
-                asset_image = asset['image'][0]
-                status = asset['iterations'][0]['status']
-                if asset_tags:
-                    if self.GroupBegin(10000 + i, c4d.BFH_LEFT, cols=1, rows=3):
-                        self.GroupBorderSpace(10, 5, 10, 5)
-                        self.GroupSpace(5,10)
+                            self.GroupBegin(20000 + i, c4d.BFH_CENTER, cols=1, rows=1)
+                            self.AddUserArea(7000 + i, c4d.BFH_CENTER, initw=50, inith=50)
+                            self.image_area.append(ImageArea(asset_image, f'asset_{self.assets_indices[i]}.png'))
+                            imagearea_index = len(self.image_area) - 1
+                            self.AttachUserArea(self.image_area[imagearea_index], 7000 + i)
+                            self.GroupEnd()
 
+                            
+                            text_width = 100
+                            if(len(asset_tags[0])<=6):
+                                text_width = 50
+                            elif(len(asset_tags[0])>6 and len(asset_tags[0])<10):
+                                text_width =90
 
-                
-                        
-                        self.GroupBegin(20000 + i, c4d.BFH_CENTER, cols=1, rows=1)
-                        self.AddUserArea(7000 + i, c4d.BFH_CENTER, initw=50, inith=50)
-                        self.image_area.append(ImageArea(asset_image, f'asset_{i}.png'))
-                        imagearea_index = len(self.image_area) - 1
-                        self.AttachUserArea(self.image_area[imagearea_index], 7000 + i)
-                        self.GroupEnd()
+                            self.GroupBegin(30000 + i, c4d.BFH_CENTER, cols=1,)
 
-                        # words = asset_tags[0].split(' ')
-                        # for i in range(0,len(words)-1):
-                        #     if(len(self.lines) == 0):
-                        #         self.lines.append(words[i])
-                        #     elif(len(self.lines[len(self.lines)-1])<50):
-                        #         self.lines[len(self.lines)-1] = self.lines[len(self.lines)-1]+ ' '+words[i]
-                        #     else:
-                        #         self.lines.append(words[i])
-                        text_width = 100
-                        if(len(asset_tags[0])<=6):
-                            text_width = 50
-                        elif(len(asset_tags[0])>6 and len(asset_tags[0])<10):
-                            text_width =90
-
-                        self.GroupBegin(30000 + i, c4d.BFH_CENTER, cols=1,)
-
-                        self.AddStaticText(1000 + i, c4d.BFH_CENTER,initw=text_width, name=asset_tags[0])
-                        self.GroupEnd()
-                       
-
+                            self.AddStaticText(1000 + i, c4d.BFH_CENTER,initw=text_width, name=asset_tags[0])
+                            self.GroupEnd()
                         
 
-                        # self.GroupBegin(40000 + i, c4d.BFH_RIGHT, cols=1, rows=1)
-                        self.AddButton(2000 + i, c4d.BFH_CENTER, initw=100, name="Import Asset")
-                        # self.GroupEnd()
+                            
+
+                            # self.GroupBegin(40000 + i, c4d.BFH_RIGHT, cols=1, rows=1)
+                            self.AddButton(2000 + i, c4d.BFH_CENTER, initw=100, name="Import Asset")
+                            # self.GroupEnd()
 
 
-                        self.GroupEnd()
-            self.GroupEnd()
-        return True
+                            self.GroupEnd()
+                self.GroupEnd()
+            return True
+        else:
+
+            start_index = self.page_no * 12
+            end_index = min(start_index + 12, len(self.assets))
+            
+            self.image_area.clear()
+            
+            if self.GroupBegin(8888,c4d.BFH_CENTER,cols=3,rows=1):
+                self.GroupSpace(0,15)
+                for i in range(start_index,end_index):
+                    asset = self.assets[i]
+                    asset_tags = asset['image_tags']
+                    asset_image = asset['image'][0]
+                    status = asset['iterations'][0]['status']
+                    if asset_tags:
+                        if self.GroupBegin(10000 + i, c4d.BFH_LEFT, cols=1, rows=3):
+                            self.GroupBorderSpace(10, 5, 10, 5)
+                            self.GroupSpace(5,10)
+        
+                            self.GroupBegin(20000 + i, c4d.BFH_CENTER, cols=1, rows=1)
+                            self.AddUserArea(7000 + i, c4d.BFH_CENTER, initw=50, inith=50)
+                            self.image_area.append(ImageArea(asset_image, f'asset_{i}.png'))
+                            imagearea_index = len(self.image_area) - 1
+                            self.AttachUserArea(self.image_area[imagearea_index], 7000 + i)
+                            self.GroupEnd()
+
+                            
+                            text_width = 100
+                            if(len(asset_tags[0])<=6):
+                                text_width = 50
+                            elif(len(asset_tags[0])>6 and len(asset_tags[0])<10):
+                                text_width =90
+
+                            self.GroupBegin(30000 + i, c4d.BFH_CENTER, cols=1,)
+
+                            self.AddStaticText(1000 + i, c4d.BFH_CENTER,initw=text_width, name=asset_tags[0])
+                            self.GroupEnd()
+                        
+
+                            
+
+                            # self.GroupBegin(40000 + i, c4d.BFH_RIGHT, cols=1, rows=1)
+                            self.AddButton(2000 + i, c4d.BFH_CENTER, initw=100, name="Import Asset")
+                            # self.GroupEnd()
+
+
+                            self.GroupEnd()
+                self.GroupEnd()
+            return True
     
 
     def Command(self, id, msg):
@@ -151,7 +188,10 @@ class FloatingPanel(c4d.gui.GeDialog):
         self.page = 0
         self.assets_per_page = 12  
         self.custom_group_list = []
-        self.cg1= CustomGroup(self.page)
+        self.search_query = ""
+        self.filtered_assets = assets_list
+        self.filtered_assets_indices = []
+        self.cg1= CustomGroup(self.page,self.filtered_assets,list(range(len(assets_list))),self.search_query)
         self.custom_group_list.append(self.cg1)
         
         
@@ -170,8 +210,12 @@ class FloatingPanel(c4d.gui.GeDialog):
             self.GroupBorderSpace(10, 10, 10, 10)  # Add padding around the entire list
             
             if self.GroupBegin(1, c4d.BFH_SCALEFIT, cols=1, rows=1,groupflags=c4d.BFV_CMD_EQUALCOLUMNS):
+
                 # Add padding inside the group that holds all assets
                 self.GroupBorderSpace(5, 5, 5, 5)  # Padding inside the group
+
+                self.AddEditText(4000, c4d.BFH_SCALEFIT, initw=300, inith=10)
+                self.AddButton(4001, c4d.BFH_CENTER, initw=100, name="Search")
                 
 
    
@@ -210,25 +254,59 @@ class FloatingPanel(c4d.gui.GeDialog):
 
     def Command(self, id, msg):
         global jwt_token, state, assets_list
+        if id == 4001:  # Search button
+            self.search_query = self.GetString(4000)
+            self.filtered_assets, self.filtered_assets_indices = self.filter_assets(self.search_query)
+            self.page = 0
+            self.update_assets_display()
         if id == 3000:
             self.Close()
         elif id == 3001:
             if self.page > 0:
                 self.page -= 1
+                self.filtered_assets = self.filter_assets(self.search_query)
                 self.updateSubDialog()
         elif id == 3002:
             if (self.page + 1) * self.assets_per_page < len(assets_list):
                 self.page += 1
+                self.filtered_assets = self.filter_assets(self.search_query)
                 self.updateSubDialog()
         
         return True
     
     
     def updateSubDialog(self):
+        global assets_list
 
-        self.custom_group_list.append(CustomGroup(self.page))
+        self.custom_group_list.append(CustomGroup(self.page,assets_list,list(range(len(assets_list))),self.search_query))
 
         self.AttachSubDialog(self.custom_group_list[self.page], 1234)
+        self.LayoutChanged(1234)
+
+
+    def filter_assets(self, query):
+        if not query:
+            return assets_list, list(range(len(assets_list)))
+        query = query.lower()
+        filtered_assets = []
+        filtered_indices = []
+        for index, asset in enumerate(assets_list):
+            if query in asset['image_tags'][0].lower():
+                filtered_assets.append(asset)
+                filtered_indices.append(index)
+        return filtered_assets, filtered_indices
+    # def filter_assets(self, query):
+    #     if not query:
+    #         return assets_list
+    #     query = query.lower()
+    #     return [asset for asset in assets_list if query in asset['image_tags'][0].lower()]
+    
+
+    def update_assets_display(self):
+        # self.RemoveSubDialog(1234)
+        self.cg1 = CustomGroup(self.page, self.filtered_assets,self.filtered_assets_indices,self.search_query)
+        self.custom_group_list.append(self.cg1)
+        self.AttachSubDialog(self.cg1, 1234)
         self.LayoutChanged(1234)
 
         
