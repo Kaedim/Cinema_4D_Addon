@@ -79,6 +79,7 @@ class CustomGroup(c4d.gui.SubDialog):
             self.GroupSpace(0,15)
             for i in range(start_index,end_index):
                 asset = self.assets[i]
+                asset_id = asset['requestID']
                 asset_tags = asset['image_tags']
                 asset_image = asset['image'][0]
                 status = asset['iterations'][0]['status']
@@ -92,7 +93,7 @@ class CustomGroup(c4d.gui.SubDialog):
                         
                         self.GroupBegin(20000 + i, c4d.BFH_CENTER, cols=1, rows=1)
                         self.AddUserArea(7000 + i, c4d.BFH_CENTER, initw=50, inith=50)
-                        self.image_area.append(ImageArea(asset_image, f'asset_{i}.png'))
+                        self.image_area.append(ImageArea(asset_image, f'asset_{asset_id}.png'))
                         imagearea_index = len(self.image_area) - 1
                         self.AttachUserArea(self.image_area[imagearea_index], 7000 + i)
                         self.GroupEnd()
@@ -126,8 +127,8 @@ class CustomGroup(c4d.gui.SubDialog):
         if 2000 <= id < 3000:
             index = id - 2000
             print(f"Import asset: {assets_list[index]['iterations'][0]['results']['obj']}")
-            asset_name = assets_list[index]['image_tags'][0]
-            fbx_url = assets_list[index]['iterations'][0]['results']['obj']
+            asset_name = self.assets[index]['image_tags'][0]
+            fbx_url = self.assets[index]['iterations'][0]['results']['obj']
             temp_dir = c4d.storage.GeGetStartupWritePath()
             local_path = download_file(fbx_url, temp_dir, asset_name)
             import_file(local_path)
@@ -267,9 +268,9 @@ class ImageArea(gui.GeUserArea):
     def download_image(self, url, image_name):
         try:
             tmp_file = os.path.join(tempfile.gettempdir(), os.path.basename(image_name))
-            # if os.path.exists(tmp_file):
-            #     print(f"Image already exists at: {tmp_file}")
-            #     return tmp_file
+            if os.path.exists(tmp_file):
+                print(f"Image already exists at: {tmp_file}")
+                return tmp_file
             urllib.request.urlretrieve(url, tmp_file)
             print(f"Downloaded image to: {tmp_file}")
             return tmp_file
