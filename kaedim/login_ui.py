@@ -6,6 +6,7 @@ import urllib.request
 import tempfile
 from kaedim.api import refresh_jwt, fetch_assets, load_preferences
 import math
+import threading
 
 
 PLUGIN_ID = 1300021  # Use a unique ID for your plugin. Obtain one from Maxon to avoid conflicts.
@@ -126,13 +127,15 @@ class CustomGroup(c4d.gui.SubDialog):
     def Command(self, id, msg):
         if 2000 <= id < 3000:
             index = id - 2000
-            print(f"Import asset: {assets_list[index]['iterations'][0]['results']['obj']}")
             asset_name = self.assets[index]['image_tags'][0]
             fbx_url = self.assets[index]['iterations'][0]['results']['obj']
             temp_dir = c4d.storage.GeGetStartupWritePath()
-            local_path = download_file(fbx_url, temp_dir, asset_name)
-            import_file(local_path)
+            threading.Thread(target=self.download_and_import, args=(fbx_url, temp_dir, asset_name)).start()
         return True
+
+    def download_and_import(self, fbx_url, temp_dir, asset_name):
+        local_path = download_file(fbx_url, temp_dir, asset_name)
+        import_file(local_path)
     
     
     
@@ -322,27 +325,20 @@ class ImageArea(gui.GeUserArea):
 
 
 def import_file(filepath):
-    # Get the current active document
     doc = c4d.documents.GetActiveDocument()
-    print(filepath)
-    # Check file extension and call the appropriate loader
     if filepath.endswith('.obj'):
-        # Import OBJ file
         result = c4d.documents.MergeDocument(doc, filepath, c4d.SCENEFILTER_OBJECTS)
         if not result:
             c4d.gui.MessageDialog("Failed to import OBJ file.")
     elif filepath.endswith('.c4d'):
-        # Import Cinema 4D file
         result = c4d.documents.LoadFile(filepath)
         if not result:
             c4d.gui.MessageDialog("Failed to import C4D file.")
     elif filepath.endswith('.fbx'):
-        # Import FBX file
         result = c4d.documents.MergeDocument(doc, filepath, c4d.SCENEFILTER_OBJECTS)
         if not result:
             c4d.gui.MessageDialog("Failed to import FBX file.")
     elif filepath.endswith('.glb') or filepath.endswith('.gltf'):
-        # Import GLB/GLTF file
         result = c4d.documents.MergeDocument(doc, filepath, c4d.SCENEFILTER_OBJECTS)
         if not result:
             c4d.gui.MessageDialog("Failed to import GLB/GLTF file.")
@@ -350,22 +346,18 @@ def import_file(filepath):
         c4d.gui.MessageDialog("Unsupported file format.")
         return
     
-    # Get the imported objects
     obj = doc.GetFirstObject()
     if not obj:
         c4d.gui.MessageDialog("No object imported.")
         return
     
-    # Calculate the scale factor
-    bbox = obj.GetRad() * 2  # Bounding box dimensions
+    bbox = obj.GetRad() * 2
     max_dimension = max(bbox.x, bbox.y, bbox.z)
-    scale_factor = 1000.0 / max_dimension  # Scale to 1 meter (1000 mm)
+    scale_factor = 1000.0 / max_dimension
 
-    # Apply the scale
     scale_vector = c4d.Vector(scale_factor, scale_factor, scale_factor)
     obj.SetAbsScale(scale_vector)
     
-    # Update the document
     c4d.EventAdd()
 
 def download_file(url, dest_folder, name):
