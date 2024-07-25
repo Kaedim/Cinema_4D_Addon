@@ -5,6 +5,8 @@ from c4d import gui, bitmaps
 import urllib.request
 import tempfile
 from kaedim.api import refresh_jwt, fetch_assets, load_preferences
+import math
+import threading
 
 
 PLUGIN_ID = 1300021  # Use a unique ID for your plugin. Obtain one from Maxon to avoid conflicts.
@@ -28,6 +30,8 @@ assets_list = []
 state = "logged_out"
 
 
+
+
 def save_preferences(dev_id, api_key, refresh_token):
     prefs = c4d.plugins.GetWorldPluginData(c4d.PLUGINTYPE_PREFS)
     if not prefs:
@@ -36,153 +40,225 @@ def save_preferences(dev_id, api_key, refresh_token):
     prefs.SetString(102, api_key)
     prefs.SetString(103, refresh_token)
     c4d.plugins.SetWorldPluginData(c4d.PLUGINTYPE_PREFS, prefs)
-    
-def import_file(filepath):
-    # Get the current active document
-    doc = c4d.documents.GetActiveDocument()
-    print(filepath)
-    # Check file extension and call the appropriate loader
-    if filepath.endswith('.obj'):
-        # Import OBJ file
-        result = c4d.documents.MergeDocument(doc, filepath, c4d.SCENEFILTER_OBJECTS)
-        if not result:
-            c4d.gui.MessageDialog("Failed to import OBJ file.")
-    elif filepath.endswith('.c4d'):
-        # Import Cinema 4D file
-        result = c4d.documents.LoadFile(filepath)
-        if not result:
-            c4d.gui.MessageDialog("Failed to import C4D file.")
-    elif filepath.endswith('.fbx'):
-        # Import FBX file
-        result = c4d.documents.MergeDocument(doc, filepath, c4d.SCENEFILTER_OBJECTS)
-        if not result:
-            c4d.gui.MessageDialog("Failed to import FBX file.")
-    elif filepath.endswith('.glb') or filepath.endswith('.gltf'):
-        # Import GLB/GLTF file
-        result = c4d.documents.MergeDocument(doc, filepath, c4d.SCENEFILTER_OBJECTS)
-        if not result:
-            c4d.gui.MessageDialog("Failed to import GLB/GLTF file.")
-    else:
-        c4d.gui.MessageDialog("Unsupported file format.")
-        return
-    
-    # Get the imported objects
-    obj = doc.GetFirstObject()
-    if not obj:
-        c4d.gui.MessageDialog("No object imported.")
-        return
-    
-    # Calculate the scale factor
-    bbox = obj.GetRad() * 2  # Bounding box dimensions
-    max_dimension = max(bbox.x, bbox.y, bbox.z)
-    scale_factor = 1000.0 / max_dimension  # Scale to 1 meter (1000 mm)
 
-    # Apply the scale
-    scale_vector = c4d.Vector(scale_factor, scale_factor, scale_factor)
-    obj.SetAbsScale(scale_vector)
-    
-    # Update the document
-    c4d.EventAdd()
 
-def download_file(url, dest_folder, name):
-    local_filename = os.path.join(dest_folder, f'{name}.obj')
-    with requests.get(url, stream=True) as r:
-        r.raise_for_status()
-        with open(local_filename, 'wb') as f:
-            for chunk in r.iter_content(chunk_size=8192):
-                f.write(chunk)
-    return local_filename
+class TextArea(gui.GeUserArea):
+    def __init__(self, text):
+        super().__init__()
+        self.text = text
 
-class FloatingPanel(c4d.gui.GeDialog):
-    """Custom dialog to display assets."""
-                
-    page = 0
+    def DrawMsg(self, x1, y1, x2, y2, msg):
+        self.DrawSetTextCol(c4d.COLOR_TEXT)
+        self.DrawSetFont(c4d.FONT_BOLD)
+        self.DrawText(self.text, x1, y1)
+
+    def GetMinSize(self):
+        return 100, 15  # Adjust as needed
     
+
+
+    
+
+class CustomGroup(c4d.gui.SubDialog):
+    """A SubDialog to display the passed string, its used as example for the actual content of a Tab"""
+    def __init__(self,page_no, assets):
+        super().__init__()
+        self.page_no = page_no
+        self.assets = assets
+        self.image_area = []
+       
+
     def CreateLayout(self):
-        global assets_list
-        self.SetTitle("Kaedim Asset List")
-        # Begin a scrollable group with a specified size limit and padding
-        if self.ScrollGroupBegin(0, c4d.BFH_SCALEFIT | c4d.BFV_SCALEFIT, scrollflags=c4d.SCROLLGROUP_VERT | c4d.SCROLLGROUP_HORIZ, initw=400, inith=300):
-            # Add padding around the scroll group content
-            self.GroupBorderSpace(10, 10, 10, 10)  # Add padding around the entire list
-            
-            if self.GroupBegin(1, c4d.BFH_SCALEFIT, cols=1, rows=len(assets_list)):
-                # Add padding inside the group that holds all assets
-                self.GroupBorderSpace(5, 5, 5, 5)  # Padding inside the group
-                print('assets', len(assets_list))
-                for i in range(self.page,  len(assets_list)):
-                    asset = assets_list[i]
-                    asset_tags = asset['image_tags']
-                    print(asset_tags[0])
-                    asset_image = asset['image'][0]
-                    status = asset['iterations'][0]['status']
-                    if asset_tags:
-                        # Begin a group for each asset (row) with two columns: one for the label, one for the button
-                        if self.GroupBegin(10000 + i, c4d.BFH_CENTER, cols=2, rows=1):
-                            # Adding space around each row
-                            self.GroupBorderSpace(10, 5, 10, 5)  # Padding around each asset row
-                            
-                            # Custom area for image
-                            # self.AddUserArea(7000 + i, c4d.BFH_CENTER, initw=50, inith=50)
-                            # self.image_area = ImageArea(asset_image, f'asset_{i}.png')
-                            # self.AttachUserArea(self.image_area, 3000 + i)
-
-                            # Static text for asset name
-                            self.AddStaticText(1000 + i, c4d.BFH_CENTER, name=asset_tags[0])
-                            # Button to import the asset
-                            self.AddButton(2000 + i, c4d.BFH_CENTER, initw=100, name="Import Asset")
-                            self.GroupEnd()  # End the row group
-                self.GroupEnd()  # End the inner group
-            self.GroupEnd()  # End the scroll group
-    
-        # Button to close the dialog with some space around
-        self.GroupBorderSpace(0, 10, 0, 10)  # Space before the close button
+        print(f"page no fromdialog class {self.page_no}")
+        # global assets_list
+        start_index = self.page_no * 12
+        end_index = min(start_index + 12, len(self.assets))
         
-        # if self.GroupBegin(1, c4d.BFH_CENTER, cols=3, rows=len(assets_list)):
-        #     # Add padding inside the group that holds all assets
-        #     self.GroupBorderSpace(5, 5, 5, 5)  # Padding inside the group
-        #     self.AddButton(300001, c4d.BFH_CENTER, name="Previous page")
-        #     self.AddStaticText(1000 + i, c4d.BFH_CENTER, name=f"Curent page: {self.page + 1}")
-        #     self.AddButton(300002, c4d.BFH_CENTER, name="Next page")
-            
-        #     self.GroupEnd()  # End the inner group
-        self.AddButton(3000, c4d.BFH_CENTER, name="Close")
-        self.AddMeter(100001, c4d.BFH_SCALEFIT)
+        self.image_area.clear()
+        
+        if self.GroupBegin(8888,c4d.BFH_CENTER,cols=3,rows=1):
+            self.GroupSpace(0,15)
+            for i in range(start_index,end_index):
+                asset = self.assets[i]
+                asset_id = asset['requestID']
+                asset_tags = asset['image_tags']
+                asset_image = asset['image'][0]
+                status = asset['iterations'][0]['status']
+                if asset_tags:
+                    if self.GroupBegin(10000 + i, c4d.BFH_LEFT, cols=1, rows=3):
+                        self.GroupBorderSpace(10, 5, 10, 5)
+                        self.GroupSpace(5,10)
+
+
+                
+                        
+                        self.GroupBegin(20000 + i, c4d.BFH_CENTER, cols=1, rows=1)
+                        self.AddUserArea(7000 + i, c4d.BFH_CENTER, initw=50, inith=50)
+                        self.image_area.append(ImageArea(asset_image, f'asset_{asset_id}.png'))
+                        imagearea_index = len(self.image_area) - 1
+                        self.AttachUserArea(self.image_area[imagearea_index], 7000 + i)
+                        self.GroupEnd()
+
+                        
+                        text_width = 100
+                        if(len(asset_tags[0])<=6):
+                            text_width = 50
+                        elif(len(asset_tags[0])>6 and len(asset_tags[0])<10):
+                            text_width =90
+
+                        self.GroupBegin(30000 + i, c4d.BFH_CENTER, cols=1,)
+
+                        self.AddStaticText(1000 + i, c4d.BFH_CENTER,initw=text_width, name=asset_tags[0])
+                        self.GroupEnd()
+                       
+
+                        
+
+                        # self.GroupBegin(40000 + i, c4d.BFH_RIGHT, cols=1, rows=1)
+                        self.AddButton(2000 + i, c4d.BFH_CENTER, initw=100, name="Import Asset")
+                        # self.GroupEnd()
+
+
+                        self.GroupEnd()
+            self.GroupEnd()
         return True
     
 
+    def Command(self, id, msg):
+        if 2000 <= id < 3000:
+            index = id - 2000
+            asset_name = self.assets[index]['image_tags'][0]
+            fbx_url = self.assets[index]['iterations'][0]['results']['obj']
+            temp_dir = c4d.storage.GeGetStartupWritePath()
+            threading.Thread(target=self.download_and_import, args=(fbx_url, temp_dir, asset_name)).start()
+        return True
+
+    def download_and_import(self, fbx_url, temp_dir, asset_name):
+        local_path = download_file(fbx_url, temp_dir, asset_name)
+        import_file(local_path)
+    
+    
+    
+    
+
+class FloatingPanel(c4d.gui.GeDialog):
+    """Custom dialog to display assets."""
+    def __init__(self):
+        super().__init__()
+        self.page = 0
+        self.assets_per_page = 12  
+        self.custom_group_list = []
+        self.search_query = ""
+        self.filtered_assets = assets_list
+        self.cg1= CustomGroup(self.page,self.filtered_assets)
+        self.custom_group_list.append(self.cg1)
+        
+        
+
+
+    
+    def CreateLayout(self):
+
+        global assets_list
+        
+       
+        self.SetTitle("Kaedim Asset List")
+        # Begin a scrollable group with a specified size limit and padding
+        if self.ScrollGroupBegin(0, c4d.BFH_SCALEFIT | c4d.BFV_SCALEFIT, scrollflags=c4d.SCROLLGROUP_VERT | c4d.SCROLLGROUP_HORIZ, initw=400, inith=350):
+            # Add padding around the scroll group content
+            self.GroupBorderSpace(10, 10, 10, 10)  # Add padding around the entire list
+            
+            if self.GroupBegin(1, c4d.BFH_SCALEFIT, cols=1, rows=1,groupflags=c4d.BFV_CMD_EQUALCOLUMNS):
+
+                # Add padding inside the group that holds all assets
+                self.GroupBorderSpace(5, 5, 5, 5)  # Padding inside the group
+
+                self.AddEditText(4000, c4d.BFH_SCALEFIT, initw=300, inith=10)
+                self.AddButton(4001, c4d.BFH_CENTER, initw=100, name="Search")
+                
+
+   
+                self.AddSubDialog(1234, c4d.BFH_SCALE | c4d.BFV_SCALEFIT, 100, 100)
+                self.AttachSubDialog(self.cg1, 1234)
+
+               
+                self.GroupEnd()
+            self.GroupEnd()  # End the scroll group
+    
+        # Button to close the dialog with some space around
+        self.GroupBegin(2, c4d.BFH_CENTER, cols=4, rows=1)
+        self.GroupBorderSpace(0, 10, 0, 10)  # Space before the close button
+        self.GroupSpace(40,0)
+        
+
+        self.AddButton(3001, c4d.BFH_CENTER, name="Previous")
+
+        self.AddButton(3000, c4d.BFH_CENTER, name="Close")
+
+        self.AddButton(3002, c4d.BFH_CENTER, name="Next")
+    
+        self.AddMeter(100001, c4d.BFH_SCALEFIT)
+
+        self.GroupEnd()
+ 
+       
+        return True
+    
+
+    
+
     def ClearLayout(self):
-        """Clear the current layout."""
         while self.GetLayoutElementCount() > 0:
             self.RemoveElement(0)
 
     def Command(self, id, msg):
         global jwt_token, state, assets_list
+        if id == 4001:  # Search button
+            self.search_query = self.GetString(4000)
+            self.filtered_assets = self.filter_assets(self.search_query)
+            self.page = 0
+            self.update_assets_display()
         if id == 3000:
             self.Close()
-        if id == 300001:
-            print("Previous page", max(0, self.page - 1), self.page)
-            self.page = max(0, self.page - 1)
-            print("Previous page", max(0, self.page - 1), self.page)
-            # self.ClearLayout()
-            self.CreateLayout()
-            self.LayoutChanged(0)  # Rerender the layout
-        if id == 300002:
-            print("Next page", len(assets_list) // 12, self.page)
-            self.page = min(len(assets_list) // 12, self.page + 1)    
-            print("Next page", len(assets_list) // 12, self.page)
-            # self.ClearLayout()
-            self.CreateLayout()
-            self.LayoutChanged(0)  # Rerender the layout
-        elif 2000 <= id < 3000:
-            index = id - 2000
-            print("Import asset:", assets_list[index]['iterations'][0]['results']['obj'])
-            asset_name = assets_list[index]['image_tags'][0]
-            fbx_url = assets_list[index]['iterations'][0]['results']['obj']
-            temp_dir = c4d.storage.GeGetStartupWritePath()  # Default write directory in C4D
-            local_path = download_file(fbx_url, temp_dir, asset_name)
-            import_file(local_path)
+        elif id == 3001:
+            if self.page > 0:
+                self.page -= 1
+                self.updateSubDialog()
+        elif id == 3002:
+            if (self.page + 1) * self.assets_per_page < len(assets_list):
+                self.page += 1
+                self.updateSubDialog()
+        
         return True
+    
+    
+    def updateSubDialog(self):
+        global assets_list
+
+        self.custom_group_list.append(CustomGroup(self.page,assets_list))
+
+        self.AttachSubDialog(self.custom_group_list[self.page], 1234)
+        self.LayoutChanged(1234)
+
+
+    def filter_assets(self, query):
+        if not query:
+            return assets_list
+        query = query.lower()
+        return [asset for asset in assets_list if query in asset['image_tags'][0].lower()]
+    
+
+    def update_assets_display(self):
+        # self.RemoveSubDialog(1234)
+        self.cg1 = CustomGroup(self.page, self.filtered_assets)
+        self.custom_group_list.append(self.cg1)
+        self.AttachSubDialog(self.cg1, 1234)
+        self.LayoutChanged(1234)
+
+        
+        
+    
+
 
 class ImageArea(gui.GeUserArea):
     def __init__(self, image_url, image_name):
@@ -195,13 +271,16 @@ class ImageArea(gui.GeUserArea):
     def download_image(self, url, image_name):
         try:
             tmp_file = os.path.join(tempfile.gettempdir(), os.path.basename(image_name))
+            if os.path.exists(tmp_file):
+                print(f"Image already exists at: {tmp_file}")
+                return tmp_file
             urllib.request.urlretrieve(url, tmp_file)
-            print(tmp_file)
+            print(f"Downloaded image to: {tmp_file}")
             return tmp_file
         except Exception as e:
             print(f"Failed to download image: {e}")
             return None
-        
+
     def setImage(self, path):
         if os.path.exists(path):
             result = self.image.InitWith(path)
@@ -221,17 +300,74 @@ class ImageArea(gui.GeUserArea):
         if self.image:
             width, height = self.image.GetSize()
             if width > 0 and height > 0:
-                self.DrawBitmap(self.image, x1, y1, x2 - x1, y2 - y1, 0, 0, width, height, c4d.BMP_NORMAL)
+                draw_width, draw_height = self.calculate_aspect_ratio(width, height, x2 - x1, y2 - y1)
+                offset_x = (x2 - x1 - draw_width) // 2
+                offset_y = (y2 - y1 - draw_height) // 2
+                self.DrawBitmap(self.image, x1 + offset_x, y1 + offset_y, draw_width, draw_height, 0, 0, width, height, c4d.BMP_ALLOWALPHA)
             else:
                 print("Image dimensions are zero.")
         else:
             print("No image to draw.")
+
+    def calculate_aspect_ratio(self, img_width, img_height, max_width, max_height):
+        aspect_ratio = img_width / img_height
+        if max_width / aspect_ratio <= max_height:
+            return max_width, int(max_width / aspect_ratio)
+        else:
+            return int(max_height * aspect_ratio), max_height
 
     def GetMinSize(self):
         if self.image:
             width, height = self.image.GetSize()
             return min(width, 50), min(height, 50)
         return 50, 50
+    
+
+
+def import_file(filepath):
+    doc = c4d.documents.GetActiveDocument()
+    if filepath.endswith('.obj'):
+        result = c4d.documents.MergeDocument(doc, filepath, c4d.SCENEFILTER_OBJECTS)
+        if not result:
+            c4d.gui.MessageDialog("Failed to import OBJ file.")
+    elif filepath.endswith('.c4d'):
+        result = c4d.documents.LoadFile(filepath)
+        if not result:
+            c4d.gui.MessageDialog("Failed to import C4D file.")
+    elif filepath.endswith('.fbx'):
+        result = c4d.documents.MergeDocument(doc, filepath, c4d.SCENEFILTER_OBJECTS)
+        if not result:
+            c4d.gui.MessageDialog("Failed to import FBX file.")
+    elif filepath.endswith('.glb') or filepath.endswith('.gltf'):
+        result = c4d.documents.MergeDocument(doc, filepath, c4d.SCENEFILTER_OBJECTS)
+        if not result:
+            c4d.gui.MessageDialog("Failed to import GLB/GLTF file.")
+    else:
+        c4d.gui.MessageDialog("Unsupported file format.")
+        return
+    
+    obj = doc.GetFirstObject()
+    if not obj:
+        c4d.gui.MessageDialog("No object imported.")
+        return
+    
+    bbox = obj.GetRad() * 2
+    max_dimension = max(bbox.x, bbox.y, bbox.z)
+    scale_factor = 1000.0 / max_dimension
+
+    scale_vector = c4d.Vector(scale_factor, scale_factor, scale_factor)
+    obj.SetAbsScale(scale_vector)
+    
+    c4d.EventAdd()
+
+def download_file(url, dest_folder, name):
+    local_filename = os.path.join(dest_folder, f'{name}.obj')
+    with requests.get(url, stream=True) as r:
+        r.raise_for_status()
+        with open(local_filename, 'wb') as f:
+            for chunk in r.iter_content(chunk_size=8192):
+                f.write(chunk)
+    return local_filename
 
 class LoginDialog(c4d.gui.GeDialog):
     ID_DEV_ID = 1001
@@ -329,4 +465,12 @@ class LoginDialog(c4d.gui.GeDialog):
             dlg.Open(dlgtype=c4d.DLG_TYPE_ASYNC, defaultw=400, defaulth=300)
         else:
             c4d.gui.MessageDialog("Failed to login: Invalid credentials")
+
+
+if __name__ == '__main__':
+    global diag
+
+    diag = FloatingPanel()
+    diag.Open(c4d.DLG_TYPE_ASYNC, defaultw=100, defaulth=100)
+    c4d.EventAdd()
             
