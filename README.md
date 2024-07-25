@@ -24,10 +24,11 @@ You would also require :
 - Open Cinema 4D and navigate to Edit (Top navbar) -> Prefrences -> Prefrences Folder (at the bottom left )
 
   <img width="265" alt="Screenshot 2024-07-25 at 20 41 33" src="https://github.com/user-attachments/assets/793dacfa-8ef0-4d3e-8946-9a7338de1425">
+  
+  <img width="754" alt="Screenshot 2024-07-25 at 20 42 23" src="https://github.com/user-attachments/assets/b8b2ec62-8f98-4454-bfb8-7fe05cf9691c">
 
 - File explorer will open up  now navigate to Maxon Cinema 4D -> Plugin Folder
   
-  <img width="754" alt="Screenshot 2024-07-25 at 20 42 23" src="https://github.com/user-attachments/assets/b8b2ec62-8f98-4454-bfb8-7fe05cf9691c">
 
 - Extract/Copy all the contents of the downloaded zip plugin folder here
 - Restart the Cinema 4D.
