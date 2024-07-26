@@ -152,6 +152,7 @@ class FloatingPanel(c4d.gui.GeDialog):
         self.filtered_assets = assets_list
         self.cg1= CustomGroup(self.page,self.filtered_assets)
         self.custom_group_list.append(self.cg1)
+        self.page_display_id = 3005
         
         
 
@@ -173,8 +174,13 @@ class FloatingPanel(c4d.gui.GeDialog):
                 # Add padding inside the group that holds all assets
                 self.GroupBorderSpace(5, 5, 5, 5)  # Padding inside the group
 
-                self.AddEditText(4000, c4d.BFH_SCALEFIT, initw=300, inith=10)
-                self.AddButton(4001, c4d.BFH_CENTER, initw=100, name="Search")
+                
+                
+                self.GroupBegin(3, c4d.BFH_CENTER, cols=3, rows=1)
+                self.AddEditText(4000, c4d.BFH_SCALEFIT, initw=200, inith=10)
+                self.AddButton(4001, c4d.BFH_CENTER, initw=90, name="Search")
+                self.AddButton(4002, c4d.BFH_CENTER, initw=90, name="Clear")
+                self.GroupEnd()
                 
 
    
@@ -189,7 +195,10 @@ class FloatingPanel(c4d.gui.GeDialog):
         self.GroupBegin(2, c4d.BFH_CENTER, cols=4, rows=1)
         self.GroupBorderSpace(0, 10, 0, 10)  # Space before the close button
         self.GroupSpace(40,0)
-        
+
+        displaypage = f"Page: {self.page + 1}/{math.ceil(len(self.filtered_assets)/self.assets_per_page)}"
+    
+        self.AddStaticText(self.page_display_id, c4d.BFH_CENTER, name=displaypage)
 
         self.AddButton(3001, c4d.BFH_CENTER, name="Previous")
 
@@ -218,7 +227,13 @@ class FloatingPanel(c4d.gui.GeDialog):
             self.filtered_assets = self.filter_assets(self.search_query)
             self.page = 0
             self.update_assets_display()
-        if id == 3000:
+        elif id == 4002:  # Clear button
+            self.SetString(4000, "")  # Clear the edit text
+            self.search_query = ""
+            self.filtered_assets = assets_list
+            self.page = 0
+            self.update_assets_display()
+        elif id == 3000:
             self.Close()
         elif id == 3001:
             if self.page > 0:
@@ -239,6 +254,7 @@ class FloatingPanel(c4d.gui.GeDialog):
 
         self.AttachSubDialog(self.custom_group_list[self.page], 1234)
         self.LayoutChanged(1234)
+        self.SetString(self.page_display_id, f"Page: {self.page + 1}/{math.ceil(len(self.filtered_assets)/self.assets_per_page)}")
 
 
     def filter_assets(self, query):
@@ -254,6 +270,7 @@ class FloatingPanel(c4d.gui.GeDialog):
         self.custom_group_list.append(self.cg1)
         self.AttachSubDialog(self.cg1, 1234)
         self.LayoutChanged(1234)
+        self.SetString(self.page_display_id, f"Page: {self.page + 1}/{math.ceil(len(self.filtered_assets)/self.assets_per_page)}")
 
         
         
