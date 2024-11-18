@@ -7,8 +7,6 @@ import tempfile
 from kaedim.api import refresh_jwt, fetch_assets, load_preferences
 import math
 import threading
-
-
 PLUGIN_ID = 1300021  # Use a unique ID for your plugin. Obtain one from Maxon to avoid conflicts.
 
 
@@ -22,7 +20,6 @@ import requests
 
 # Configuration Constants
 API_DOMAIN = "https://api.kaedim3d.com/"
-
 
 # State Variables
 jwt_token = None
@@ -139,8 +136,6 @@ class CustomGroup(c4d.gui.SubDialog):
     
     
     
-    
-
 class FloatingPanel(c4d.gui.GeDialog):
     """Custom dialog to display assets."""
     def __init__(self):
@@ -152,10 +147,8 @@ class FloatingPanel(c4d.gui.GeDialog):
         self.filtered_assets = assets_list
         self.cg1= CustomGroup(self.page,self.filtered_assets)
         self.custom_group_list.append(self.cg1)
-        
-        
-
-
+        self.progress_value = 0
+        threading.Thread(target=self.download_next_pages, args=(len(self.filtered_assets) // self.assets_per_page,)).start()
     
     def CreateLayout(self):
 
@@ -214,10 +207,14 @@ class FloatingPanel(c4d.gui.GeDialog):
     def Command(self, id, msg):
         global jwt_token, state, assets_list
         if id == 4001:  # Search button
+            self.progress_value = 0
+            self.update_status_bar("Loading...")
             self.search_query = self.GetString(4000)
             self.filtered_assets = self.filter_assets(self.search_query)
             self.page = 0
             self.update_assets_display()
+            self.update_status_bar("Loading complete", value=100)
+            # self.hide_loading_popup()
         if id == 3000:
             self.Close()
         elif id == 3001:
@@ -225,12 +222,22 @@ class FloatingPanel(c4d.gui.GeDialog):
                 self.page -= 1
                 self.updateSubDialog()
         elif id == 3002:
+            self.progress_value = 0
+            self.update_status_bar("Loading...")
             if (self.page + 1) * self.assets_per_page < len(assets_list):
                 self.page += 1
                 self.updateSubDialog()
+            self.update_status_bar("Loading complete", value=100)
         
         return True
     
+    def update_status_bar(self, message, value=None):
+        """Update the status bar (meter) value and optionally print a message."""
+        if value is not None:
+            self.progress_value = value
+        self.SetMeter(100001, self.progress_value)
+        c4d.StatusSetText(message)
+        c4d.EventAdd()
     
     def updateSubDialog(self):
         global assets_list
@@ -239,6 +246,28 @@ class FloatingPanel(c4d.gui.GeDialog):
 
         self.AttachSubDialog(self.custom_group_list[self.page], 1234)
         self.LayoutChanged(1234)
+
+
+    def download_next_pages(self, pages = 0):
+        global assets_list
+
+        # This method will run in a separate thread to download images for a specific page
+        next_pages = [self.page + i for i in range(1, pages + 1)]
+
+        for page in next_pages:
+            if page * self.assets_per_page < len(assets_list):
+                self.download_images(page)
+    
+    def download_images(self, page):
+        global assets_list
+
+        start_index = page * self.assets_per_page
+        end_index = start_index + self.assets_per_page
+        for asset in assets_list[start_index:end_index]:
+            asset_id = asset['requestID']
+            asset_image = asset['image'][0]
+            print(f"Downloading image for asset: {asset_id}")
+            download_image(asset_image, f'asset_{asset_id}.png')
 
 
     def filter_assets(self, query):
@@ -257,7 +286,18 @@ class FloatingPanel(c4d.gui.GeDialog):
 
         
         
-    
+def download_image(url, image_name):
+    try:
+        tmp_file = os.path.join(tempfile.gettempdir(), os.path.basename(image_name))
+        if os.path.exists(tmp_file):
+            print(f"Image already exists at: {tmp_file}")
+            return tmp_file
+        urllib.request.urlretrieve(url, tmp_file)
+        print(f"Downloaded image to: {tmp_file}")
+        return tmp_file
+    except Exception as e:
+        print(f"Failed to download image: {e}")
+        return None    
 
 
 class ImageArea(gui.GeUserArea):
