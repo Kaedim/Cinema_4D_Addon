@@ -15,7 +15,6 @@ import requests
 
 # Configuration Constants
 API_DOMAIN = "https://api.kaedim3d.com/"
-
 # State Variables
 jwt_token = None
 assets_list = []
@@ -86,15 +85,15 @@ def fetch_assets():
     body = {
         'devID': dev_id,
     }
-
     try:
         response = requests.get(url, headers=headers, json=body)
         response.raise_for_status()
         all_assets = response.json()['assets']
         print(all_assets) # For some reasong if this gets removes the assets are not saved
-        # Filter assets where the first iteration's status is not dismissed or cancelled
         assets_list_with_iterations = [asset for asset in all_assets if asset['iterations'] is not None and len(asset['iterations']) > 0 ]
-        assets_list = [asset for asset in assets_list_with_iterations if asset['iterations'][0]['status'] not in ('dismissed', 'cancelled')]
+        # c4d.gui.MessageDialog(assets_list_with_iterations[0]['iterations'][0]['status'])
+        #why just the first iteration? Shouldn't it be the most recent one?
+        assets_list = [asset for asset in assets_list_with_iterations if asset['iterations'][-1]['status'] in ('completed', 'approved')]
         return True, assets_list
         
     except requests.RequestException as e:
