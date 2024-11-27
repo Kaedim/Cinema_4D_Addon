@@ -136,7 +136,7 @@ class CustomGroup(c4d.gui.SubDialog):
     
     
     
-class FloatingPanel(c4d.gui.GeDialog):
+class FloatingPanel(c4d.gui.GeDialog): #AddMeter
     """Custom dialog to display assets."""
     def __init__(self):
         super().__init__()
@@ -189,8 +189,6 @@ class FloatingPanel(c4d.gui.GeDialog):
         self.AddButton(3000, c4d.BFH_CENTER, name="Close")
 
         self.AddButton(3002, c4d.BFH_CENTER, name="Next")
-    
-        self.AddMeter(100001, c4d.BFH_SCALEFIT)
 
         self.GroupEnd()
  
@@ -409,7 +407,7 @@ def download_file(url, dest_folder, name):
                 f.write(chunk)
     return local_filename
 
-class LoginDialog(c4d.gui.GeDialog):
+class LoginDialog(c4d.gui.GeDialog): #AddMeter GeDialog
     ID_DEV_ID = 1001
     ID_API_KEY = 1002
     ID_REFRESH_TOKEN = 1004
@@ -447,7 +445,6 @@ class LoginDialog(c4d.gui.GeDialog):
         # Button to login with some space around it
         self.GroupBorderSpace(10, 20, 10, 10)  # Space around the login button
         self.AddButton(self.ID_LOGIN_BUTTON, c4d.BFH_CENTER, initw=100, name="Login")
-        self.AddMeter(100002, c4d.BFH_SCALEFIT)
         
         return True
    
@@ -490,7 +487,7 @@ class LoginDialog(c4d.gui.GeDialog):
         return True
 
     def load_assets(self):
-        global jwt_token, assets_list
+        global jwt_token, assets_list, dlg
         assets_fetched = False
         if jwt_token:
            assets_fetched, assets_list = fetch_assets()

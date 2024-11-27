@@ -96,6 +96,7 @@ def download_file(url, dest_folder, name):
 
 class MyPlugin(plugins.CommandData):
     def Execute(self, doc):
+        global dlg
         dlg = LoginDialog()
         dlg.Open(c4d.DLG_TYPE_ASYNC, defaultw=300, defaulth=100)
         return True
