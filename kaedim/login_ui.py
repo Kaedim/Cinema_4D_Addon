@@ -136,7 +136,7 @@ class CustomGroup(c4d.gui.SubDialog):
     
     
     
-class FloatingPanel(c4d.gui.GeDialog): #AddMeter
+class FloatingPanel(c4d.gui.GeDialog):
     """Custom dialog to display assets."""
     def __init__(self):
         super().__init__()
@@ -407,7 +407,7 @@ def download_file(url, dest_folder, name):
                 f.write(chunk)
     return local_filename
 
-class LoginDialog(c4d.gui.GeDialog): #AddMeter GeDialog
+class LoginDialog(c4d.gui.GeDialog):
     ID_DEV_ID = 1001
     ID_API_KEY = 1002
     ID_REFRESH_TOKEN = 1004
