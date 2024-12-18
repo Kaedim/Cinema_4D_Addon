@@ -487,13 +487,13 @@ class LoginDialog(c4d.gui.GeDialog):
         return True
 
     def load_assets(self):
-        global jwt_token, assets_list, dlg
+        global jwt_token, state, assets_list, dlg
         assets_fetched = False
         if jwt_token:
-           assets_fetched, assets_list = fetch_assets()
+           assets_fetched, assets_list = fetch_assets(jwt_token, state)
            if not assets_fetched:
-               refresh_jwt()
-               assets_fetched, assets_list = fetch_assets()
+               jwt_token, state = refresh_jwt()
+               assets_fetched, assets_list = fetch_assets(jwt_token, state)
         
         if assets_fetched:
             
