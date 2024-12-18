@@ -45,13 +45,14 @@ assets_list = []
 state = "logged_out"
 
 
-def save_preferences(dev_id, api_key, refresh_token):
+def save_preferences(dev_id, api_key, refresh_token, studio_id):
     prefs = c4d.plugins.GetWorldPluginData(c4d.PLUGINTYPE_PREFS)
     if not prefs:
         prefs = c4d.BaseContainer()
     prefs.SetString(101, dev_id)
     prefs.SetString(102, api_key)
     prefs.SetString(103, refresh_token)
+    prefs.SetString(104, studio_id)
     c4d.plugins.SetWorldPluginData(c4d.PLUGINTYPE_PREFS, prefs)
 
 def import_file(filepath):

@@ -15,20 +15,6 @@ import requests
 
 # Configuration Constants
 API_DOMAIN = "https://api.kaedim3d.com/"
-# State Variables
-jwt_token = None
-assets_list = []
-state = "logged_out"
-
-
-def save_preferences(dev_id, api_key, refresh_token):
-    prefs = c4d.plugins.GetWorldPluginData(c4d.PLUGINTYPE_PREFS)
-    if not prefs:
-        prefs = c4d.BaseContainer()
-    prefs.SetString(101, dev_id)
-    prefs.SetString(102, api_key)
-    prefs.SetString(103, refresh_token)
-    c4d.plugins.SetWorldPluginData(c4d.PLUGINTYPE_PREFS, prefs)
 
 def load_preferences():
     prefs = c4d.plugins.GetWorldPluginData(c4d.PLUGINTYPE_PREFS)
@@ -36,13 +22,14 @@ def load_preferences():
         dev_id = prefs.GetString(101, "")
         api_key = prefs.GetString(102, "")
         refresh_token = prefs.GetString(103, "")
-        return dev_id, api_key, refresh_token
-    return "", "", ""
+        studio_id = prefs.GetString(104, "")
+        return dev_id, api_key, refresh_token, studio_id
+    return "", "", "", ""
 
 
 def refresh_jwt():
-    global jwt_token, state
-    dev_id, api_key, refresh_token = load_preferences()
+    jwt_token, state = "", "logged_out"
+    dev_id, api_key, refresh_token, _ = load_preferences()
     # Mockup for the login function, replace with actual API login code
     if dev_id and api_key:
         print(f"Logging in with Developer ID: {dev_id} and API Key: {api_key}")
@@ -67,12 +54,12 @@ def refresh_jwt():
     except requests.RequestException as e:
         print('Failed to login')
 
-    return True
+    return jwt_token, state
 
-def fetch_assets():
+def fetch_assets(jwt_token, state):
     """Fetches asset metadata from the API and filters based on specific criteria."""
-    global jwt_token, state, assets_list
-    dev_id, api_key, _ = load_preferences()
+    assets_list = []
+    dev_id, api_key, _, studio_id = load_preferences()
     if state != 'logged_in':
         print("Not logged in. Cannot fetch assets.")
         return False, []
@@ -82,17 +69,18 @@ def fetch_assets():
         "X-API-Key": api_key,
         "Authorization": f"Bearer {jwt_token}"
     }
-    body = {
+    params = {
         'devID': dev_id,
     }
+    if studio_id != "":
+        params['studioID'] = studio_id
+
     try:
-        response = requests.get(url, headers=headers, json=body)
+        response = requests.get(url, headers=headers, params=params)
         response.raise_for_status()
         all_assets = response.json()['assets']
         print(all_assets) # For some reasong if this gets removes the assets are not saved
         assets_list_with_iterations = [asset for asset in all_assets if asset['iterations'] is not None and len(asset['iterations']) > 0 ]
-        # c4d.gui.MessageDialog(assets_list_with_iterations[0]['iterations'][0]['status'])
-        #why just the first iteration? Shouldn't it be the most recent one?
         assets_list = [asset for asset in assets_list_with_iterations if asset['iterations'][-1]['status'] in ('completed', 'approved')]
         return True, assets_list
         

@@ -29,13 +29,14 @@ state = "logged_out"
 
 
 
-def save_preferences(dev_id, api_key, refresh_token):
+def save_preferences(dev_id, api_key, refresh_token, studio_id):
     prefs = c4d.plugins.GetWorldPluginData(c4d.PLUGINTYPE_PREFS)
     if not prefs:
         prefs = c4d.BaseContainer()
     prefs.SetString(101, dev_id)
     prefs.SetString(102, api_key)
     prefs.SetString(103, refresh_token)
+    prefs.SetString(104, studio_id)
     c4d.plugins.SetWorldPluginData(c4d.PLUGINTYPE_PREFS, prefs)
 
 
@@ -412,10 +413,11 @@ class LoginDialog(c4d.gui.GeDialog):
     ID_API_KEY = 1002
     ID_REFRESH_TOKEN = 1004
     ID_LOGIN_BUTTON = 1003
+    ID_STUDIO_ID = 1008
     
     
     def CreateLayout(self):
-        default_dev_id, default_api_key, default_refresh_token = load_preferences()
+        default_dev_id, default_api_key, default_refresh_token, default_studio_id = load_preferences()
         print( default_dev_id, default_api_key )
         self.SetTitle("Kaedim login")
         # Begin a vertical group for better structure
@@ -438,6 +440,11 @@ class LoginDialog(c4d.gui.GeDialog):
         self.AddStaticText(1007, c4d.BFH_LEFT, name="Refresh Token:", initw=0, inith=10)
         self.AddEditText(self.ID_REFRESH_TOKEN, c4d.BFH_SCALEFIT, initw=300, inith=10)
         self.SetString(self.ID_REFRESH_TOKEN, default_refresh_token)
+
+        # Studio ID Field
+        self.AddStaticText(1009, c4d.BFH_LEFT, name="Studio ID:", initw=0, inith=10)
+        self.AddEditText(self.ID_STUDIO_ID, c4d.BFH_SCALEFIT, initw=300, inith=10)
+        self.SetString(self.ID_STUDIO_ID, default_studio_id)
         
         
         self.GroupEnd()  # End the vertical group
@@ -453,10 +460,11 @@ class LoginDialog(c4d.gui.GeDialog):
             dev_id = self.GetString(self.ID_DEV_ID)
             api_key = self.GetString(self.ID_API_KEY)
             refresh_token = self.GetString(self.ID_REFRESH_TOKEN)
-            self.login(dev_id, api_key, refresh_token)
+            studio_id = self.GetString(self.ID_STUDIO_ID)
+            self.login(dev_id, api_key, refresh_token, studio_id)
         return True
     
-    def login(self, dev_id, api_key, refresh_token):
+    def login(self, dev_id, api_key, refresh_token, studio_id):
         global jwt_token, state
         # Mockup for the login function, replace with actual API login code
         if dev_id and api_key and refresh_token:
@@ -479,7 +487,7 @@ class LoginDialog(c4d.gui.GeDialog):
             jwt_token = response.json()['jwt']
             state = 'logged_in'
             print('Login successful, JWT retrieved.')
-            save_preferences(dev_id, api_key, refresh_token)
+            save_preferences(dev_id, api_key, refresh_token, studio_id)
             self.load_assets()
         except requests.RequestException as e:
             c4d.gui.MessageDialog("Failed to login: Invalid credentials")
@@ -487,13 +495,13 @@ class LoginDialog(c4d.gui.GeDialog):
         return True
 
     def load_assets(self):
-        global jwt_token, assets_list, dlg
+        global jwt_token, state, assets_list, dlg
         assets_fetched = False
         if jwt_token:
-           assets_fetched, assets_list = fetch_assets()
+           assets_fetched, assets_list = fetch_assets(jwt_token, state)
            if not assets_fetched:
-               refresh_jwt()
-               assets_fetched, assets_list = fetch_assets()
+               jwt_token, state = refresh_jwt()
+               assets_fetched, assets_list = fetch_assets(jwt_token, state)
         
         if assets_fetched:
             
