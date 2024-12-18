@@ -22,13 +22,14 @@ def load_preferences():
         dev_id = prefs.GetString(101, "")
         api_key = prefs.GetString(102, "")
         refresh_token = prefs.GetString(103, "")
-        return dev_id, api_key, refresh_token
-    return "", "", ""
+        studio_id = prefs.GetString(104, "")
+        return dev_id, api_key, refresh_token, studio_id
+    return "", "", "", ""
 
 
 def refresh_jwt():
     jwt_token, state = "", "logged_out"
-    dev_id, api_key, refresh_token = load_preferences()
+    dev_id, api_key, refresh_token, _ = load_preferences()
     # Mockup for the login function, replace with actual API login code
     if dev_id and api_key:
         print(f"Logging in with Developer ID: {dev_id} and API Key: {api_key}")
@@ -58,7 +59,7 @@ def refresh_jwt():
 def fetch_assets(jwt_token, state):
     """Fetches asset metadata from the API and filters based on specific criteria."""
     assets_list = []
-    dev_id, api_key, _ = load_preferences()
+    dev_id, api_key, _, studio_id = load_preferences()
     if state != 'logged_in':
         print("Not logged in. Cannot fetch assets.")
         return False, []
@@ -71,6 +72,9 @@ def fetch_assets(jwt_token, state):
     params = {
         'devID': dev_id,
     }
+    if studio_id != "":
+        params['studioID'] = studio_id
+
     try:
         response = requests.get(url, headers=headers, params=params)
         response.raise_for_status()
