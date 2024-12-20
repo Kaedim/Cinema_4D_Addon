@@ -39,6 +39,59 @@ def save_preferences(dev_id, api_key, refresh_token, studio_id):
     prefs.SetString(104, studio_id)
     c4d.plugins.SetWorldPluginData(c4d.PLUGINTYPE_PREFS, prefs)
 
+def calculate_hierarchy_bounding_box(obj):
+    """
+    Recursively calculates the bounding box of an object and its children.
+    """
+    if obj.GetType() == c4d.Onull:
+        children = obj.GetChildren()
+        if not children:
+            return None
+        
+        bbox_min = c4d.Vector(float('inf'), float('inf'), float('inf'))
+        bbox_max = c4d.Vector(float('-inf'), float('-inf'), float('-inf'))
+        
+        for child in children:
+            child_bbox = calculate_hierarchy_bounding_box(child)
+            if child_bbox:
+                child_min, child_max = child_bbox
+                bbox_min = c4d.Vector(
+                    min(bbox_min.x, child_min.x),
+                    min(bbox_min.y, child_min.y),
+                    min(bbox_min.z, child_min.z)
+                )
+                bbox_max = c4d.Vector(
+                    max(bbox_max.x, child_max.x),
+                    max(bbox_max.y, child_max.y),
+                    max(bbox_max.z, child_max.z)
+                )
+        return bbox_min, bbox_max
+    else:
+        bbox_min = obj.GetAbsPos() - obj.GetRad()
+        bbox_max = obj.GetAbsPos() + obj.GetRad()
+        return bbox_min, bbox_max
+    
+def scale_hierarchy(obj, scale_factor=1000.0):
+    """
+    Scales an object and its children based on the maximum dimension of the hierarchy.
+    """
+    bbox = calculate_hierarchy_bounding_box(obj)
+    if not bbox:
+        print(f"Skipping scaling for {obj.GetName()}: No bounding box found.")
+        return
+
+    bbox_min, bbox_max = bbox
+    hierarchy_size = bbox_max - bbox_min
+    max_dimension = max(hierarchy_size.x, hierarchy_size.y, hierarchy_size.z)
+
+    if max_dimension == 0:
+        print(f"Skipping scaling for {obj.GetName()}: Maximum dimension is zero.")
+        return
+
+    scale_ratio = scale_factor / max_dimension
+    scale_vector = c4d.Vector(scale_ratio, scale_ratio, scale_ratio)
+    obj.SetAbsScale(scale_vector)
+    print(f"Scaled {obj.GetName()} with scale ratio {scale_ratio:.2f}")
 
 class TextArea(gui.GeUserArea):
     def __init__(self, text):
@@ -389,14 +442,9 @@ def import_file(filepath):
     if not obj:
         c4d.gui.MessageDialog("No object imported.")
         return
-    
-    bbox = obj.GetRad() * 2
-    max_dimension = max(bbox.x, bbox.y, bbox.z)
-    scale_factor = 1000.0 / max_dimension
 
-    scale_vector = c4d.Vector(scale_factor, scale_factor, scale_factor)
-    obj.SetAbsScale(scale_vector)
-    
+    scale_hierarchy(obj, scale_factor=1000.0)
+
     c4d.EventAdd()
 
 def download_file(url, dest_folder, name):
