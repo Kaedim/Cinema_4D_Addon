@@ -109,9 +109,9 @@ class MyPlugin(plugins.CommandData):
 if __name__ == "__main__":
     plugin = plugins.RegisterCommandPlugin(
         id=PLUGIN_ID,
-        str="Kadim Plugin",
+        str="Kaedim Plugin",
         info=0,
         icon=None,
-        help="Kaedims import asset plugin",
+        help="Kaedim import asset plugin",
         dat=MyPlugin()
     )
