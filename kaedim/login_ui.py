@@ -515,25 +515,14 @@ class LoginDialog(c4d.gui.GeDialog):
     def login(self, dev_id, api_key, refresh_token, studio_id):
         global jwt_token, state
         # Mockup for the login function, replace with actual API login code
+        # Mockup for the login function, replace with actual API login code
         if dev_id and api_key and refresh_token:
             print(f"Logging in with Developer ID: {dev_id} and API Key: {api_key}")
         else:
             print("Developer ID, API Key and Refresh Token cannot be empty.")
         
-        url = f"{API_DOMAIN}api/v1/registerHook"
-        headers = {
-            "Content-Type": "application/json",
-            "X-API-Key": api_key
-        }
-        body = {
-            'devID': dev_id,
-            'destination': 'test'
-        }
         try:
-            response = requests.post(url, headers=headers, json=body)
-            response.raise_for_status()
-            jwt_token = response.json()['jwt']
-            state = 'logged_in'
+            jwt_token, state = refresh_jwt()
             print('Login successful, JWT retrieved.')
             save_preferences(dev_id, api_key, refresh_token, studio_id)
             self.load_assets()
